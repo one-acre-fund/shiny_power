@@ -20,6 +20,10 @@ cohen_d <- function(d1,d2) {
 
   } 
 
+# right now this only works with the typical alpha levels
+# I don't think we need to allow more precision than that but conceivable 
+# people might want to look at alpha levels in between those typical thresholds.
+
 dat_MDE <- function(mean.input, sd.input, differs){
   #initialise empty vec
   p <- matrix(NA, nrow = 20, ncol=3)
@@ -95,11 +99,23 @@ ui <- navbarPage("Practical Power Calculations",
                              value = 50),
                 numericInput("sc_diff_m",
                              "Magnitude change over average",
-                             value = 10)
+                             value = 10),
                 # p("What range of changes do you want to see?"),
                 # sliderInput("sc_diff_spread",
                 #              "Range of permutations",
                 #              min=0, max=10, value=10)
+                
+                # figure out how to use this to reshape the graph and table
+                # I'll also need to require at least one of these to be selected
+                # and print a default message if one isn't.
+                checkboxGroupInput("alphaLevel",
+                                   "For which alpha levels?",
+                                   choices = c("p < 0.01",
+                                               "p < 0.05",
+                                               "p < 0.1"),
+                                   selected = c("p < 0.01",
+                                                "p < 0.05",
+                                                "p < 0.1"))
               ), #conditional panel1
               conditionalPanel(
                 condition = "input.percentage == true",
@@ -111,7 +127,15 @@ ui <- navbarPage("Practical Power Calculations",
                              value = 50),
                 numericInput("sc_diff_p",
                              "Percentage (%) change over average",
-                             value = 10)
+                             value = 10),
+                checkboxGroupInput("alphaLevel",
+                                   "For which alpha levels?",
+                                   choices = c("p < 0.01",
+                                               "p < 0.05",
+                                               "p < 0.1"),
+                                   selected = c("p < 0.01",
+                                                "p < 0.05",
+                                                "p < 0.1"))
               ),
               downloadButton("downloadData", "Download Result")
             ) #wellpanel layout
@@ -151,7 +175,6 @@ ui <- navbarPage("Practical Power Calculations",
               ), # column close
               column(8,
                      wellPanel(
-                       textOutput("show"),
                        plotOutput("mde_plot"),
                        dataTableOutput("mde_table")
                      )
@@ -204,8 +227,6 @@ server <- function(input, output) {
   }  
 })
 
-  
-  output$show <- renderPrint({differs()})
   
   # magnitude
   sampTab <- reactive({

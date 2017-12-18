@@ -84,7 +84,7 @@ ui <- navbarPage("Practical Power Calculations",
         fluidRow(
           column(12,
             wellPanel(
-              helpText("Introduction: Here is where you do calulations to determine the sample required to detect a 
+              helpText("Use case: Here is where you do calulations to determine the sample required to detect a 
                        differnece of interest between treatment arms. You can do this as an aboslute
                        (magnitude) change or as a percentage change. What difference do we need to see to scale this trial? The app will automatically show you
                        sample sizes for differences greater and less than the desired differnece to create
@@ -162,10 +162,10 @@ ui <- navbarPage("Practical Power Calculations",
             fluidRow(
               column(12,
                      wellPanel(
-                       helpText("Power calculations for when you have a set sample size and 
+                       helpText("Use case: Power calculations for when you have a set sample size and 
                                   you're trying to understand the type of effect you're 
                                 likely to detect with your trial. This reports changes
-                                in terms of magnitude changes. This app will automatically show
+                                in terms of standardized effect sizes. This app will automatically show
                                 results for larger and smaller sample sizes to facilitate
                                 decision making.")
                        )),
@@ -173,7 +173,10 @@ ui <- navbarPage("Practical Power Calculations",
                      wellPanel(
                          numericInput("mde_n",
                                       "Available sample size",
-                                      value = 100)
+                                      value = 100),
+                         numericInput("mde_sd",
+                                      "Standard deviation of outcome",
+                                      value = NULL)
                      ) #wellpanel layout
               ), # column close
               column(8,
@@ -262,6 +265,9 @@ server <- function(input, output) {
     names(dat) = c("Differences", "Alpha is 0.01", "Alpha is 0.05", "Alpha is 0.1")
     
     datatable(dat, rownames = FALSE)
+    # selection = list(mode="single",
+    # seleted = which(changes==1),
+    # target = "row")
   })
   
   output$downloadData <- downloadHandler(
@@ -296,14 +302,14 @@ server <- function(input, output) {
     }
   })
   
-  # output$mde_plot <- renderPlot({
-  #   need sd of d1 and d2 to use the current function
-  # 
-  # })
+  # minimum detectable effect section of server
+  # add in look at getting mean if standard deviation is provided
+  
+  mde_changes = seq(0.1, 2, by=0.1)
   
   nOps = reactive({
     req(input$mde_n)
-    nOps = input$mde_n * changes[changes>0]
+    nOps = input$mde_n * mde_changes
   })
   
   # minimum detectable effect
@@ -314,6 +320,7 @@ server <- function(input, output) {
     
     ggplot(dat, aes(x = n, y = d)) + 
       geom_line(size = 1.2) +
+      geom_point(data=dat[which(mde_changes==1),], aes(x = n, y = d), size=3) + 
       labs(x = "Sample size", y = "Minimum detectable effect (d)", 
            title = "Miniumum detectable effect for given sample size") + 
       theme(plot.title = element_text(hjust = 0.5, size = 20))
@@ -321,9 +328,22 @@ server <- function(input, output) {
   })
   
   output$mde_table <- renderDataTable({
+    if(is.null(input$mde_sd)){
     dat = data.frame(n = nOps(), d = round(unlist(lapply(nOps(), posthoc_mde)),3))
     names(dat) = c("Sample Size", "Effect Size")
-    datatable(dat, rownames = FALSE)
+    datatable(dat, rownames = FALSE, selection = list(mode = "single", 
+                                                      selected=which(mde_changes==1),
+                                                      target="row"))
+    } else {
+      dat = data.frame(n = nOps(), 
+                       d = round(unlist(lapply(nOps(), posthoc_mde)),3))
+      
+      dat$mu = dat$d * input$mde_sd
+      names(dat) = c("Sample Size", "Effect Size", "Average difference")
+      datatable(dat, rownames = FALSE, selection = list(mode = "single", 
+                                                        selected=which(mde_changes==1),
+                                                        target="row"))
+    }
   })
   
 }

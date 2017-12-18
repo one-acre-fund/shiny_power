@@ -24,6 +24,9 @@ cohen_d <- function(d1,d2) {
 # I don't think we need to allow more precision than that but conceivable 
 # people might want to look at alpha levels in between those typical thresholds.
 
+# look at how 
+
+
 dat_MDE <- function(mean.input, sd.input, differs){
   #initialise empty vec
   p <- matrix(NA, nrow = 20, ncol=3)
@@ -57,18 +60,19 @@ dat_MDE <- function(mean.input, sd.input, differs){
 # return(mde_tab)
 
 # to get measurable effect sizes
-posthoc_mde = function(d1,d2){
+posthoc_mde = function(n_length){
   require(pwr)
   
   #print(paste("mean diff (d2-d1)", mean(d2, na.rm=TRUE)-mean(d1,na.rm=TRUE)))
-  s1= sd(d1,na.rm=TRUE)
-  s2=sd(d2,na.rm=TRUE)
-  spo = sqrt((s1**2 + s2**2)/2)
+  # what is happening here?
+  # s1= sd(d1,na.rm=TRUE)
+  # s2=sd(d2,na.rm=TRUE)
+  # spo = sqrt((s1**2 + s2**2)/2)
   
-  mded = pwr.t.test(n = length(d1), d=NULL, sig.level = 0.05, power=0.8, type="two.sample", alternative = "two.sided")$d
+  mded = pwr.t.test(n = n_length, d=NULL, sig.level = 0.05, power=0.8, type="two.sample", alternative = "two.sided")$d
   
-  mde_out = mded * spo
-  return(mde_out)
+  #mde_out = mded * spo
+  return(mded)
 }
 
 
@@ -147,6 +151,11 @@ ui <- navbarPage("Practical Power Calculations",
                  dataTableOutput("sc_table")
                         )
                 )
+      ),
+      column(12,
+             wellPanel(
+               htmlOutput("nrequired")
+             )
       )# fluidRow
   ), #tabPanel
    tabPanel("Minimum Detectable Effect",
@@ -162,12 +171,6 @@ ui <- navbarPage("Practical Power Calculations",
                        )),
               column(4,
                      wellPanel(
-                         numericInput("mde_mean",
-                                      "Outcome average",
-                                      value = 100),
-                         numericInput("mde_stdv",
-                                      "Outcome standard deviation",
-                                      value = 50),
                          numericInput("mde_n",
                                       "Available sample size",
                                       value = 100)
@@ -180,12 +183,9 @@ ui <- navbarPage("Practical Power Calculations",
                      )
                   )
               )
-        ),# tab panel close
-          column(12,
-                 wellPanel(
-                   htmlOutput("nrequired")
-                   )
-                 )
+        )# tab panel close
+    # new tabpanel of the PPV work?
+          
 )
 
 
@@ -204,7 +204,7 @@ server <- function(input, output) {
   # })
   
   # the same
-  changes = seq(-10,10, by=2)
+  changes = sort(c(seq(-10,10, by=2), 1))
   
   # need to keep this simple 
   differs <- reactive({
@@ -249,7 +249,7 @@ server <- function(input, output) {
           geom_line(aes(x=dat[,3], y=differs()), size=1.2, color="red") +
           xlab("Sample size")+ ylab("Decision Threshold") +
           ggtitle("Decision Threshold vs. Sample Size") +
-        theme(plot.title = element_text(hjust = 0.5,
+          theme(plot.title = element_text(hjust = 0.5,
                                         size = 20),
               plot.subtitle = element_text(hjust=0.5))
   })
@@ -300,6 +300,31 @@ server <- function(input, output) {
   #   need sd of d1 and d2 to use the current function
   # 
   # })
+  
+  nOps = reactive({
+    req(input$mde_n)
+    nOps = input$mde_n * changes[changes>0]
+  })
+  
+  # minimum detectable effect
+  output$mde_plot <- renderPlot({
+    # only changes greater than 0
+    
+    dat = data.frame(d = unlist(lapply(nOps(), posthoc_mde)), n = nOps())
+    
+    ggplot(dat, aes(x = n, y = d)) + 
+      geom_line(size = 1.2) +
+      labs(x = "Sample size", y = "Minimum detectable effect (d)", 
+           title = "Miniumum detectable effect for given sample size") + 
+      theme(plot.title = element_text(hjust = 0.5, size = 20))
+      
+  })
+  
+  output$mde_table <- renderDataTable({
+    dat = data.frame(n = nOps(), d = round(unlist(lapply(nOps(), posthoc_mde)),3))
+    names(dat) = c("Sample Size", "Effect Size")
+    datatable(dat, rownames = FALSE)
+  })
   
 }
 

@@ -24,6 +24,8 @@ cohen_d <- function(d1,d2) {
 # I don't think we need to allow more precision than that but conceivable 
 # people might want to look at alpha levels in between those typical thresholds.
 
+# add in some notes to test making commits through githubs
+
 # look at how 
 
 

@@ -188,9 +188,44 @@ ui <- navbarPage("Practical Power Calculations",
                      )
                   )
               )
-        )# tab panel close
+        ),# tab panel close
     # new tabpanel of the PPV work?
-          
+  tabPanel("Positive Predictive Value",
+           fluidRow(
+             column(12,
+                    wellPanel(
+                      helpText("The purpose of this tab is place p-values in more context.
+                               P-values help us understand the likelihood of seeing an effect as
+                               great or greater than the observed effect but they don't tell us about
+                               the overall likelihood of any difference being present. Positive predictive
+                               value places observed p-values in the context of how likely it was to 
+                               see an effect in the first place. The pre trial (a priori) expectation helps
+                               adjust the the p-value to reflec the true false positive rate.")
+                      )),
+             column(4,
+                    wellPanel(
+                      sliderInput("priorOdds", label=h5("Select the percentage of true hypotheses"),
+                                  min = 0, max = 1, value = 0.25, step = 0.05),
+                      sliderInput("power", label=h5("Select power of the test (1-beta)"),
+                                  min = 0, max = 1, value = 0.8, step = 0.01),
+                      sliderInput("alpha", label=h5("Select observed alpha level"),
+                                  min = 0, max = 1, value = 0.05, step = 0.01),
+                      # selectInput("alpha", label = h5("Select alpha"),
+                      #             choices = c("0.1", "0.05", "0.01"), selected = "0.05"),
+                      br(),
+                      actionButton("makeGraph", "Generate graph")
+                    ) #wellpanel layout
+             ), # column close
+             column(8,
+                    wellPanel(
+                      plotOutput("ppv_plot"),
+                      br(),
+                      h4("True false positive rate:"),
+                      textOutput("ppv_percent")
+                             )
+                    )
+                ) #fluidRow
+        )# tab panel close      
 )
 
 
@@ -346,6 +381,75 @@ server <- function(input, output) {
                                                         selected=which(mde_changes==1),
                                                         target="row"))
     }
+  })
+  
+  # ppv
+  plotTiles <- eventReactive(input$makeGraph, {
+    
+    # alpha <- ifelse(input$alpha=="0.1", 0.1, 
+    #                 ifelse(input$alpha=="0.05", 0.05, 0.01))
+    
+    trueHypo <- round(100 * input$priorOdds,0)
+    falseHypo <- round(100 - trueHypo,0)
+    
+    # falses
+    falsePos <- round(falseHypo * input$alpha,0)
+    falseHypo <- round(falseHypo - falsePos,0)
+    
+    # truths
+    falseNeg <- round(trueHypo * (1 - input$power),0)
+    truePos <- round(trueHypo * input$power,0)
+    
+    nrows <- 10
+    df <- expand.grid(y = 1:nrows, x = 1:nrows)
+    
+    var = c(rep("1. False Hypotheses", falseHypo), rep("2. False Positives", falsePos),
+            rep("3. False Negatives", falseNeg), rep("4. True Positives", truePos))
+    categ_table <- round(table(var) * ((nrows*nrows)/(length(var))))
+    categ_table
+    
+    df$category <- factor(rep(names(categ_table), categ_table))
+    
+    ggplot(df, aes(x = x, y = y, fill = category)) + 
+      geom_tile(color = "black", size = 0.5) +
+      scale_x_continuous(expand = c(0, 0)) +
+      scale_y_continuous(expand = c(0, 0), trans = 'reverse') +
+      scale_fill_brewer(palette = "Set3") +
+      labs(title="Hypotheses: Why power matters for finding true effects", 
+           subtitle="Being powerful is good",
+           caption="Source: the Economist",
+           x = "", y = "") + 
+      theme(legend.position = "bottom")
+    
+  })
+  
+  trueAlpha <- eventReactive(input$makeGraph, {
+    
+    # alpha <- ifelse(input$alpha=="0.1", 0.1, 
+    #                 ifelse(input$alpha=="0.05", 0.05, 0.01))
+    
+    trueHypo <- round(100 * input$priorOdds,0)
+    falseHypo <- round(100 - trueHypo,0)
+    
+    # falses
+    falsePos <- round(falseHypo * input$alpha,0)
+    falseHypo <- round(falseHypo - falsePos,0)
+    
+    # truths
+    falseNeg <- round(trueHypo * (1 - input$power),0)
+    truePos <- round(trueHypo * input$power,0)
+    
+    percentage <- paste(round(falsePos / (truePos + falsePos) * 100,1), "%")
+    
+  })
+  
+  # and ouput those results
+  output$ppv_plot <- renderPlot({
+    plotTiles()
+  })
+  
+  output$ppv_percent <- renderText({
+    trueAlpha()
   })
   
 }

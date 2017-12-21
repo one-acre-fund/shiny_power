@@ -220,8 +220,7 @@ ui <- navbarPage("Practical Power Calculations",
                     wellPanel(
                       plotOutput("ppv_plot"),
                       br(),
-                      h4("True false positive rate:"),
-                      textOutput("ppv_percent")
+                      htmlOutput("ppv_percent")
                              )
                     )
                 ) #fluidRow
@@ -440,6 +439,7 @@ server <- function(input, output) {
     truePos <- round(trueHypo * input$power,0)
     
     percentage <- paste(round(falsePos / (truePos + falsePos) * 100,1), "%")
+    res <- paste0("True false positive rate: ", percentage)
     
   })
   

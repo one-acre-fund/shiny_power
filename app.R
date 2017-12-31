@@ -21,6 +21,8 @@ cohen_d <- function(d1,d2) {
 
   } 
 
+dat = round(dat_MDE_clus(100, 50, 10, 0.1, differs),0)
+
 # right now this only works with the typical alpha levels
 # I don't think we need to allow more precision than that but conceivable 
 # people might want to look at alpha levels in between those typical thresholds.
@@ -74,15 +76,15 @@ dat_MDE_clus <- function(mean.input, sd.input, clustN.input,
     # inp <- cohen_d(samp1, samp2)
     
     p[i,1] <- crtpwr.2mean(alpha = 0.01, power = 0.8,
-                           n = clustN.input, cv = 0, d = differs[i],
+                           n = clustN.input, cv = 0, d = differs[i], varw = sd.input,
                            icc = icc.input, method = "taylor")[[1]]
       
     p[i,2] <- crtpwr.2mean(alpha = 0.05, power = 0.8,
-                           n = clustN.input, cv = 0, d = differs[i],
+                           n = clustN.input, cv = 0, d = differs[i], varw = sd.input,
                            icc = icc.input, method = "taylor")[[1]]
     
     p[i,3] <- crtpwr.2mean(alpha = 0.1, power = 0.8,
-                           n = clustN.input, cv = 0, d = differs[i],
+                           n = clustN.input, cv = 0, d = differs[i], varw = sd.input,
                            icc = icc.input, method = "taylor")[[1]]
     
   }
@@ -284,10 +286,6 @@ server <- function(input, output) {
   # the same
   changes = sort(c(seq(-10,10, by=2), 1))
   
-  # clustered functions:
-  
-  
-  
   # need to keep this simple 
   # this doesn't need to adjust for clustered designs because regardless I'm 
   # just feeding this into the function to look at different differences
@@ -326,7 +324,7 @@ server <- function(input, output) {
   })
   
   output$sc_plot <- renderPlot({
-    
+  
     dat = sampTab()
     
       ggplot() +
@@ -336,11 +334,12 @@ server <- function(input, output) {
           geom_line(aes(x=dat[,2], y=differs()), size=1.2, color="blue") +
           geom_point(aes(x=dat[,3], y= differs()), size=3, color="red", shape=1) +
           geom_line(aes(x=dat[,3], y=differs()), size=1.2, color="red") +
-          xlab("Sample size")+ ylab("Decision Threshold") +
-          ggtitle("Decision Threshold vs. Sample Size") +
+          labs(title = "Decision Threshold vs. Sample Size", x = "Sample size",
+                  y = "Decision Threshold") + 
           theme(plot.title = element_text(hjust = 0.5,
                                         size = 20),
               plot.subtitle = element_text(hjust=0.5))
+   
   })
   
   output$sc_table <- renderDataTable({
@@ -354,6 +353,7 @@ server <- function(input, output) {
     # selection = list(mode="single",
     # seleted = which(changes==1),
     # target = "row")
+    
   })
   
   output$downloadData <- downloadHandler(
@@ -367,24 +367,39 @@ server <- function(input, output) {
   )
   
   output$nrequired <- renderUI({
-    if(input$percentage==FALSE){
+    if(input$percentage==FALSE & input$clustered == FALSE){
       dat = sampTab()
       target = input$sc_diff_m
-      samp_out = round(dat[3,1],0) #because 1 is the 3 element in the changes vector >> update this to be more flexible.
+      samp_out = round(dat[differs()==input$sc_diff_m,2],0) # update this
       
-      str1 = paste("To achieve 80% power for a decision threshold of", target, "you'll need ", samp_out, "farmers per treatment arm", sep = " ")
-      str2 = "This is still a work in progress - I want this to summarize for all alpha levels - Maybe let people set or select alpha levels of interest? This is currently 
-      only displaying for alpha = 0.01"
-      HTML(paste(str1, str2, sep = '<br/>'))
-    } else {
+      str1 = paste("To achieve 80% power and an alpha of 0.05 for a decision threshold of ", target, " you'll need ", samp_out, " farmers per treatment arm", sep = "")
+    } else if(input$percentage == FALSE & input$clustered == TRUE) {
       dat = sampTab()
-      target = input$sc_diff_p
-      samp_out = round(dat[3,1],0) #because 1 is the 3 element in the changes vector >> update this to be more flexible.
+      target = input$sc_diff_m
       
-      str1 = paste("To achieve 80% power for a decision threshold of", target, "% you'll need ", format(samp_out, big.mark=","), "farmers per treatment arm", sep = " ")
-      str2 = "This is still a work in progress - I want this to summarize for all alpha levels - Maybe let people set or select alpha levels of interest? This is currently 
-      only displaying for alpha = 0.01"
-      HTML(paste(str1, str2, sep = '<br/>'))
+      samp_out = round(dat[differs()==input$sc_diff_m,2],0) 
+      
+      str1 = paste("To achieve 80% power and an alpha of 0.05 for a decision threshold of ", target, " you'll need ", format(samp_out, big.mark=","), 
+                   " clusters per treatment arm and ", samp_out * input$sc_clustN, " farmers total",  sep = "")
+      
+    } else if(input$percentage == TRUE & input$clustered == FALSE) {
+      dat = sampTab()
+      target = input$sc_diff_m
+      
+      samp_out = round(dat[differs()==input$sc_diff_m,2],0) 
+      
+      str1 = paste("To achieve 80% power and an alpha of 0.05 for a decision threshold of ", target, "% you'll need ", format(samp_out, big.mark=","), 
+                   " clusters per treatment arm ",  sep = "")
+      
+    } else if(input$percentage == TRUE & input$clustered == TRUE) {
+      dat = sampTab()
+      target = input$sc_diff_m
+      
+      samp_out = round(dat[differs()==input$sc_diff_m,2],0) 
+      
+      str1 = paste("To achieve 80% power and an alpha of 0.05 for a decision threshold of ", target, "% you'll need ", format(samp_out, big.mark=","), 
+                   " clusters per treatment arm and ", samp_out * input$sc_clustN, " farmers total",  sep = "")
+      
     }
   })
   

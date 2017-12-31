@@ -5,6 +5,7 @@ library(pwr)
 library(ggplot2)
 library(knitr)
 library(DT)
+library(clusterPower)
 
 # general functions for use
 cohen_d <- function(d1,d2) {  
@@ -52,14 +53,44 @@ dat_MDE <- function(mean.input, sd.input, differs){
 
 }
 
+test <- crtpwr.2mean(alpha = 0.01, power = 0.8,
+             n = 10, cv = 0, d = 10, varw = 3,
+             icc = 0.01, method = "taylor")
 
-# 
-# 
-# mde_tab = data.frame("MDE"=differs, 
-#                      "Sample size 0.05"=p[,1], 
-#                      "Sample size 0.1" = p[,2]
-# )
-# return(mde_tab)
+
+# clustered MDE for decision threshold
+# we're most likely solving for m, the number of clusters per arm as the size of the cluster,
+# the site, group, etc, is likely set.
+dat_MDE_clus <- function(mean.input, sd.input, clustN.input,
+                         icc.input, differs){
+  #initialise empty vec
+  p <- matrix(NA, nrow = 20, ncol=3)
+  
+  set.seed(20171101)
+  for(i in seq(1:length(differs)) ) {
+    # samp1 <- rnorm(n=1000, mean = mean.input, sd=sd.input)
+    # #this is a better version if you can understand it:
+    # samp2 <- samp1 + rnorm(length(samp1), differs[i], differs[i]/10) #add some noise
+    # inp <- cohen_d(samp1, samp2)
+    
+    p[i,1] <- crtpwr.2mean(alpha = 0.01, power = 0.8,
+                           n = clustN.input, cv = 0, d = differs[i],
+                           icc = icc.input, method = "taylor")[[1]]
+      
+    p[i,2] <- crtpwr.2mean(alpha = 0.05, power = 0.8,
+                           n = clustN.input, cv = 0, d = differs[i],
+                           icc = icc.input, method = "taylor")[[1]]
+    
+    p[i,3] <- crtpwr.2mean(alpha = 0.1, power = 0.8,
+                           n = clustN.input, cv = 0, d = differs[i],
+                           icc = icc.input, method = "taylor")[[1]]
+    
+  }
+  
+  p <- p[!is.na(p[,1]),]
+  return(p)
+  
+}
 
 # to get measurable effect sizes
 posthoc_mde = function(n_length){
@@ -86,17 +117,21 @@ ui <- navbarPage("Practical Power Calculations",
         fluidRow(
           column(12,
             wellPanel(
-              helpText("Use case: Here is where you do calulations to determine the sample required to detect a 
-                       differnece of interest between treatment arms. You can do this as an aboslute
-                       (magnitude) change or as a percentage change. What difference do we need to see to scale this trial? The app will automatically show you
+              helpText("Tutorial: Here is where you do calulations to determine the sample required to detect the 
+                       differnece of interest between treatment arms. In other words, you're answering
+                       the question, 'What difference do we need to see to scale this trial?' You can do this as an aboslute
+                       (magnitude) change or as a percentage change.  The app will automatically show you
                        sample sizes for differences greater and less than the desired differnece to create
-                       a menu of options for decision making."),
-              checkboxInput(inputId = "percentage", label = "Percentage change?", value = FALSE)
+                       a menu of options for decision making.
+
+                        Let's look at an example together:"),
+              checkboxInput(inputId = "percentage", label = "Percentage change?", value = FALSE),
+              checkboxInput(inputId = "clustered", label = "Clustered design?", value = FALSE)
             )),
           column(4,
                  wellPanel(
               conditionalPanel(
-                condition = "input.percentage == false",
+                condition = "input.percentage == false & input.clustered == false",
                 numericInput("sc_mean",
                              "Outcome average",
                              value = 100),
@@ -104,27 +139,29 @@ ui <- navbarPage("Practical Power Calculations",
                              "Outcome standard deviation",
                              value = 50),
                 numericInput("sc_diff_m",
-                             "Magnitude change over average",
-                             value = 10),
-                # p("What range of changes do you want to see?"),
-                # sliderInput("sc_diff_spread",
-                #              "Range of permutations",
-                #              min=0, max=10, value=10)
-                
-                # figure out how to use this to reshape the graph and table
-                # I'll also need to require at least one of these to be selected
-                # and print a default message if one isn't.
-                checkboxGroupInput("alphaLevel",
-                                   "For which alpha levels?",
-                                   choices = c("p < 0.01",
-                                               "p < 0.05",
-                                               "p < 0.1"),
-                                   selected = c("p < 0.01",
-                                                "p < 0.05",
-                                                "p < 0.1"))
+                             "Magnitude change over control",
+                             value = 10)
               ), #conditional panel1
               conditionalPanel(
-                condition = "input.percentage == true",
+                condition = "input.percentage == false & input.clustered == true",
+                numericInput("sc_mean",
+                             "Outcome average",
+                             value = 100),
+                numericInput("sc_stdev",
+                             "Outcome standard deviation",
+                             value = 50),
+                numericInput("sc_diff_m",
+                             "Magnitude change over control",
+                             value = 10),
+                sliderInput("ICC_c", 
+                            "Intra-cluster Correlation", 
+                            value = 0.1, min = 0, max = 1),
+                numericInput("sc_clustN",
+                             "Average cluster size",
+                             value = 10)
+              ),
+              conditionalPanel(
+                condition = "input.percentage == true & input.clustered == false",
                 numericInput("sc_mean",
                              "Outcome average",
                              value = 100),
@@ -132,16 +169,26 @@ ui <- navbarPage("Practical Power Calculations",
                              "Outcome standard deviation",
                              value = 50),
                 numericInput("sc_diff_p",
-                             "Percentage (%) change over average",
+                             "Percentage (%) change over control",
+                             value = 10)
+              ),
+              conditionalPanel(
+                condition = "input.percentage == true & input.clustered == true",
+                numericInput("sc_mean",
+                             "Outcome average",
+                             value = 100),
+                numericInput("sc_stdev",
+                             "Outcome standard deviation",
+                             value = 50),
+                numericInput("sc_diff_p",
+                             "Percentage (%) change over control",
                              value = 10),
-                checkboxGroupInput("alphaLevel",
-                                   "For which alpha levels?",
-                                   choices = c("p < 0.01",
-                                               "p < 0.05",
-                                               "p < 0.1"),
-                                   selected = c("p < 0.01",
-                                                "p < 0.05",
-                                                "p < 0.1"))
+                sliderInput("ICC_c", 
+                            "Intra-cluster Correlation", 
+                            value = 0.1, min = 0, max = 1),
+                numericInput("sc_clustN",
+                             "Average cluster size",
+                             value = 10)
               ),
               downloadButton("downloadData", "Download Result")
             ) #wellpanel layout
@@ -204,9 +251,9 @@ ui <- navbarPage("Practical Power Calculations",
                       )),
              column(4,
                     wellPanel(
-                      sliderInput("priorOdds", label=h5("Select the percentage of true hypotheses"),
+                      sliderInput("priorOdds", label=h5("On a scale from 0 to 1, how likely is the hypothesis to be true?"),
                                   min = 0, max = 1, value = 0.25, step = 0.05),
-                      sliderInput("power", label=h5("Select power of the test (1-beta)"),
+                      sliderInput("power", label=h5("Select the power of the test"),
                                   min = 0, max = 1, value = 0.8, step = 0.01),
                       sliderInput("alpha", label=h5("Select observed alpha level"),
                                   min = 0, max = 1, value = 0.05, step = 0.01),
@@ -233,19 +280,17 @@ ui <- navbarPage("Practical Power Calculations",
 
 server <- function(input, output) {
   
-  # for the slider to update
-  # observe({
-  #   val <- input$sc_diff_m
-  #   # Control the value, min, max, and step.
-  #   # Step size is 2 when input value is even; 1 when value is odd.
-  #   updateSliderInput(session, "sc_diff_spread", value = val,
-  #                     min = floor(val/2), max = val+4, step = (val+1)%%2 + 1)
-  # })
-  
+  # for decision thresholds
   # the same
   changes = sort(c(seq(-10,10, by=2), 1))
   
+  # clustered functions:
+  
+  
+  
   # need to keep this simple 
+  # this doesn't need to adjust for clustered designs because regardless I'm 
+  # just feeding this into the function to look at different differences
   differs <- reactive({
     if(input$percentage==TRUE){
       req(input$sc_diff_p)
@@ -267,13 +312,18 @@ server <- function(input, output) {
 })
 
   
-  # magnitude
+  # the actual power calculations
   sampTab <- reactive({
+    if(input$clustered == FALSE){
       req(input$sc_mean, input$sc_stdev)
       dat = round(dat_MDE(input$sc_mean, input$sc_stdev, differs()),0)
+    } else {
+      req(input$sc_mean, input$sc_stdev, input$sc_clustN, input$ICC_c)
+      dat = round(dat_MDE_clus(input$sc_mean, input$sc_stdev, input$sc_clustN,
+                               input$ICC_c, differs()),0)
+    }
     # changes to evaluate in the data
   })
-  
   
   output$sc_plot <- renderPlot({
     
@@ -340,7 +390,6 @@ server <- function(input, output) {
   
   # minimum detectable effect section of server
   # add in look at getting mean if standard deviation is provided
-  
   mde_changes = seq(0.1, 2, by=0.1)
   
   nOps = reactive({

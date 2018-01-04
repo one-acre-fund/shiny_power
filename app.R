@@ -110,8 +110,7 @@ posthoc_mde = function(n_length){
   return(mded)
 }
 
-
-# Define UI for application that draws a histogram
+# start UI function
 ui <- navbarPage("Practical Power Calculations",
 
    # Application title
@@ -144,28 +143,28 @@ ui <- navbarPage("Practical Power Calculations",
               ), #conditional panel1
               conditionalPanel(
                 condition = "input.percentage == false & input.clustered == true",
-                numericInput("sc_mean",
+                numericInput("sc_mean_c",
                              "Outcome average",
                              value = 100),
-                numericInput("sc_stdev",
+                numericInput("sc_stdev_c",
                              "Outcome standard deviation",
                              value = 50),
-                numericInput("sc_diff_m",
+                numericInput("sc_diff_mc",
                              "Magnitude change over control",
                              value = 10),
                 sliderInput("ICC_c", 
                             "Intra-cluster Correlation", 
                             value = 0.1, min = 0, max = 1),
-                numericInput("sc_clustN",
+                numericInput("sc_clustN_c",
                              "Average cluster size",
                              value = 10)
               ),
               conditionalPanel(
                 condition = "input.percentage == true & input.clustered == false",
-                numericInput("sc_mean",
+                numericInput("sc_mean_p",
                              "Outcome average",
                              value = 100),
-                numericInput("sc_stdev",
+                numericInput("sc_stdev_p",
                              "Outcome standard deviation",
                              value = 50),
                 numericInput("sc_diff_p",
@@ -174,19 +173,19 @@ ui <- navbarPage("Practical Power Calculations",
               ),
               conditionalPanel(
                 condition = "input.percentage == true & input.clustered == true",
-                numericInput("sc_mean",
+                numericInput("sc_mean_pc",
                              "Outcome average",
                              value = 100),
-                numericInput("sc_stdev",
+                numericInput("sc_stdev_pc",
                              "Outcome standard deviation",
                              value = 50),
-                numericInput("sc_diff_p",
+                numericInput("sc_diff_pc",
                              "Percentage (%) change over control",
                              value = 10),
-                sliderInput("ICC_c", 
+                sliderInput("ICC_pc", 
                             "Intra-cluster Correlation", 
                             value = 0.1, min = 0, max = 1),
-                numericInput("sc_clustN",
+                numericInput("sc_clustN_pc",
                              "Average cluster size",
                              value = 10)
               ),
@@ -276,9 +275,7 @@ ui <- navbarPage("Practical Power Calculations",
 
 
 
-# Define server logic required to draw a histogram
-
-server <- function(input, output) {
+server <- function(input, output, session) {
   
   # for decision thresholds
   # the same
@@ -288,37 +285,47 @@ server <- function(input, output) {
   # this doesn't need to adjust for clustered designs because regardless I'm 
   # just feeding this into the function to look at different differences
   differs <- reactive({
-    if(input$percentage==TRUE){
-      req(input$sc_diff_p)
-      # add in permutation on the percent changes +- 10
-      
-      toTest = ((input$sc_diff_p + changes)/100) * input$sc_mean
-      
-      # then convert to percentage
-      # toTest = toTest / 100
-      toTest = toTest[toTest>0]
-      # toTest = toTest * input$sc_mean
-      # toTest
-    } else {
-      req(input$sc_diff_m)
-      changes = seq(-10,10, by=2) # plus or minus 10 by 2
+    if(input$percentage==FALSE & input$clustered==FALSE){
+      req(input$sc_mean, input$sc_stdev, input$sc_diff_m)
       toTest = input$sc_diff_m + changes
       toTest = toTest[toTest>0]
-  }  
+      return(toTest)
+    } else if(input$percentage==TRUE & input$clustered==FALSE){
+      req(input$sc_mean, input$sc_stdev, input$sc_diff_p)
+      toTest = ((input$sc_diff_p + changes)/100) * input$sc_mean
+      toTest = toTest[toTest>0]
+      return(toTest)
+    } else if(input$percentage==FALSE & input$clustered==TRUE){
+      req(input$sc_mean_c, input$sc_stdev_c, input$sc_diff_mc)
+      toTest = input$sc_diff_mc + changes
+      toTest = toTest[toTest>0]
+      return(toTest)
+    } else if(input$percentage==TRUE & input$clustered==TRUE){
+      req(input$sc_mean_pc, input$sc_stdev_pc, input$sc_diff_pc)
+      toTest = ((input$sc_diff_pc + changes)/100) * input$sc_mean_pc
+      toTest = toTest[toTest>0]
+      return(toTest)
+    }
 })
 
   
   # the actual power calculations
   sampTab <- reactive({
-    if(input$clustered == FALSE){
+    if(input$percentage==FALSE & input$clustered == FALSE){
       req(input$sc_mean, input$sc_stdev)
       dat = round(dat_MDE(input$sc_mean, input$sc_stdev, differs()),0)
-    } else {
-      req(input$sc_mean, input$sc_stdev, input$sc_clustN, input$ICC_c)
-      dat = round(dat_MDE_clus(input$sc_mean, input$sc_stdev, input$sc_clustN,
+    } else if(input$percentage==FALSE & input$clustered==TRUE){
+      req(input$sc_mean_c, input$sc_stdev_c, input$sc_clustN_c, input$ICC_c)
+      dat = round(dat_MDE_clus(input$sc_mean_c, input$sc_stdev_c, input$sc_clustN_c,
                                input$ICC_c, differs()),0)
+    } else if(input$percentage == TRUE & input$clustered==FALSE){
+      req(input$sc_mean_p, input$sc_stdev_p)
+      dat = round(dat_MDE(input$sc_mean_p, input$sc_stdev_p, differs()),0)
+    } else if(input$percentage == TRUE & input$clustered == TRUE){
+      req(input$sc_mean_pc, input$sc_stdev_pc, input$sc_clustN_pc, input$ICC_pc)
+      dat = round(dat_MDE_clus(input$sc_mean_pc, input$sc_stdev_pc, input$sc_clustN_pc,
+                               input$ICC_pc, differs()),0)
     }
-    # changes to evaluate in the data
   })
   
   output$sc_plot <- renderPlot({
@@ -387,7 +394,7 @@ server <- function(input, output) {
       samp_out = round(dat[differs()==input$sc_diff_m,2],0) 
       
       str1 = paste("To achieve 80% power and an alpha of 0.05 for a decision threshold of ", target, " you'll need ", format(samp_out, big.mark=","), 
-                   " clusters per treatment arm and ", samp_out * input$sc_clustN, " farmers total",  sep = "")
+                   " clusters per treatment arm and ", samp_out * input$sc_clustN, " farmers tota per treatment arml",  sep = "")
       
     } else if(input$percentage == TRUE & input$clustered == FALSE) {
       dat = sampTab()
@@ -405,7 +412,7 @@ server <- function(input, output) {
       samp_out = round(dat[differs()==input$sc_diff_m,2],0) 
       
       str1 = paste("To achieve 80% power and an alpha of 0.05 for a decision threshold of ", target, "% you'll need ", format(samp_out, big.mark=","), 
-                   " clusters per treatment arm and ", samp_out * input$sc_clustN, " farmers total",  sep = "")
+                   " clusters per treatment arm and ", samp_out * input$sc_clustN, " farmers total per treatment arm",  sep = "")
       
     }
   })

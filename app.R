@@ -50,13 +50,13 @@ dat_MDE <- function(mean.input, sd.input, differs){
   }
   
   p <- p[!is.na(p[,1]),]
-  return(p)
+  return(as.data.frame(p))
 
 }
 
-test <- crtpwr.2mean(alpha = 0.01, power = 0.8,
-             n = 10, cv = 0, d = 10, varw = 3,
-             icc = 0.01, method = "taylor")
+# test <- crtpwr.2mean(alpha = 0.01, power = 0.8,
+#              n = 10, cv = 0, d = 10, varw = 3,
+#              icc = 0.01, method = "taylor")
 
 
 # clustered MDE for decision threshold
@@ -89,7 +89,7 @@ dat_MDE_clus <- function(mean.input, sd.input, clustN.input,
   }
   
   p <- p[!is.na(p[,1]),]
-  return(p)
+  return(as.data.frame(p))
   
 }
 
@@ -331,19 +331,22 @@ server <- function(input, output, session) {
   output$sc_plot <- renderPlot({
     
     dat = sampTab()
+    xval = differs()
     
-      ggplot() +
-        geom_point(aes(x=dat[,1], y= differs()), size=3, color="green", shape=1) +
-        geom_line(aes(x=dat[,1], y=differs()), size=1.2, color="green") + 
-        geom_point(aes(x=dat[,2], y= differs()), size=3, color="blue", shape=1) +
-        geom_line(aes(x=dat[,2], y=differs()), size=1.2, color="blue") +
-        geom_point(aes(x=dat[,3], y= differs()), size=3, color="red", shape=1) +
-        geom_line(aes(x=dat[,3], y=differs()), size=1.2, color="red") +
-        labs(title = "Decision Threshold vs. Sample Size", x = "Sample size",
-                  y = "Decision Threshold") + 
+    gph <- ggplot() +
+        geom_point(aes(x = xval, y = dat[,1]), size=3, color="green", shape=1) +
+        geom_line(aes(x = xval, y = dat[,1]), size=1.2, color="green") + 
+        geom_point(aes(x = xval, y = dat[,2]), size=3, color="blue", shape=1) +
+        geom_line(aes(x = xval, y = dat[,2]), size=1.2, color="blue") +
+        geom_point(aes(x = xval, y = dat[,3]), size=3, color="red", shape=1) +
+        geom_line(aes(x = xval, y = dat[,3]), size=1.2, color="red") +
+        labs(title = "Differences betwen treatments and sample size", y = "Sample size",
+                  x = "Differences between treatments") + 
         theme(plot.title = element_text(hjust = 0.5,size = 20),
               plot.subtitle = element_text(hjust=0.5)) +
-        scale_x_continuous(limits = c(0, max(dat)))
+        scale_x_continuous(limits = c(min(xval), max(xval)))
+    
+    return(gph)
    
   })
   

@@ -118,9 +118,10 @@ ui <- navbarPage("Practical Power Calculations",
         fluidRow(
           column(12,
             wellPanel(
-              helpText("Tutorial: Here is where you do calulations to determine the sample required to detect the 
+              helpText("Introduction: Here is where you do calulations to determine the sample required to detect the 
                        differnece of interest between treatment arms. In other words, you're answering
-                       the question, 'What difference do we need to see to scale this trial?' You can do this as an aboslute
+                       the question, 'What difference do we need to see to scale this trial?'"),
+              helpText("You can do this as an aboslute
                        (magnitude) change or as a percentage change.  The app will automatically show you
                        sample sizes for differences greater and less than the desired differnece to create
                        a menu of options for decision making."),
@@ -210,12 +211,15 @@ ui <- navbarPage("Practical Power Calculations",
             fluidRow(
               column(12,
                      wellPanel(
-                       helpText("Use case: Power calculations for when you have a set sample size and 
+                       helpText("Introduction: Power calculations for when you have a set sample size and 
                                   you're trying to understand the type of effect you're 
                                 likely to detect with your trial. This reports changes
                                 in terms of standardized effect sizes. This app will automatically show
                                 results for larger and smaller sample sizes to facilitate
-                                decision making.")
+                                decision making."),
+                       helpText("If you do not enter a standard deviation, this page will only show you the Cohen's d
+                                effect size. If you also enter the standard deviation of the outcome, the effect size 
+                                will be converted into an average difference between treatment and control.")
                        )),
               column(4,
                      wellPanel(
@@ -340,7 +344,7 @@ server <- function(input, output, session) {
         geom_line(aes(x = xval, y = dat[,2]), size=1.2, color="blue") +
         geom_point(aes(x = xval, y = dat[,3]), size=3, color="red", shape=1) +
         geom_line(aes(x = xval, y = dat[,3]), size=1.2, color="red") +
-        labs(title = "Differences betwen treatments and sample size", y = "Sample size",
+        labs(title = "Differences between treatments vs. sample size", y = "Sample size",
                   x = "Differences between treatments") + 
         theme(plot.title = element_text(hjust = 0.5,size = 20),
               plot.subtitle = element_text(hjust=0.5)) +

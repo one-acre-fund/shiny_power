@@ -21,7 +21,6 @@ cohen_d <- function(d1,d2) {
 
   } 
 
-dat = round(dat_MDE_clus(100, 50, 10, 0.1, differs),0)
 
 # right now this only works with the typical alpha levels
 # I don't think we need to allow more precision than that but conceivable 
@@ -103,10 +102,11 @@ posthoc_mde = function(n_length){
   # s1= sd(d1,na.rm=TRUE)
   # s2=sd(d2,na.rm=TRUE)
   # spo = sqrt((s1**2 + s2**2)/2)
+  spo = 2 # this is crude but need to have some sort of inflation factor until I figure out why we need this.
   
   mded = pwr.t.test(n = n_length, d=NULL, sig.level = 0.05, power=0.8, type="two.sample", alternative = "two.sided")$d
   
-  #mde_out = mded * spo
+  mded = mded * spo
   return(mded)
 }
 
@@ -124,9 +124,7 @@ ui <- navbarPage("Practical Power Calculations",
                        the question, 'What difference do we need to see to scale this trial?' You can do this as an aboslute
                        (magnitude) change or as a percentage change.  The app will automatically show you
                        sample sizes for differences greater and less than the desired differnece to create
-                       a menu of options for decision making.
-
-                        Let's look at an example together:"),
+                       a menu of options for decision making."),
               checkboxInput(inputId = "percentage", label = "Percentage change?", value = FALSE),
               checkboxInput(inputId = "clustered", label = "Clustered design?", value = FALSE)
             )),
@@ -223,7 +221,7 @@ ui <- navbarPage("Practical Power Calculations",
               column(4,
                      wellPanel(
                          numericInput("mde_n",
-                                      "Available sample size",
+                                      "Available sample size per treatment arm",
                                       value = 100),
                          numericInput("mde_sd",
                                       "Standard deviation of outcome",
@@ -324,26 +322,27 @@ server <- function(input, output) {
   })
   
   output$sc_plot <- renderPlot({
-  
+    
     dat = sampTab()
     
       ggplot() +
-          geom_point(aes(x=dat[,1], y= differs()), size=3, color="green", shape=1) +
-          geom_line(aes(x=dat[,1], y=differs()), size=1.2, color="green") + 
-          geom_point(aes(x=dat[,2], y= differs()), size=3, color="blue", shape=1) +
-          geom_line(aes(x=dat[,2], y=differs()), size=1.2, color="blue") +
-          geom_point(aes(x=dat[,3], y= differs()), size=3, color="red", shape=1) +
-          geom_line(aes(x=dat[,3], y=differs()), size=1.2, color="red") +
-          labs(title = "Decision Threshold vs. Sample Size", x = "Sample size",
+        geom_point(aes(x=dat[,1], y= differs()), size=3, color="green", shape=1) +
+        geom_line(aes(x=dat[,1], y=differs()), size=1.2, color="green") + 
+        geom_point(aes(x=dat[,2], y= differs()), size=3, color="blue", shape=1) +
+        geom_line(aes(x=dat[,2], y=differs()), size=1.2, color="blue") +
+        geom_point(aes(x=dat[,3], y= differs()), size=3, color="red", shape=1) +
+        geom_line(aes(x=dat[,3], y=differs()), size=1.2, color="red") +
+        labs(title = "Decision Threshold vs. Sample Size", x = "Sample size",
                   y = "Decision Threshold") + 
-          theme(plot.title = element_text(hjust = 0.5,
-                                        size = 20),
-              plot.subtitle = element_text(hjust=0.5))
+        theme(plot.title = element_text(hjust = 0.5,size = 20),
+              plot.subtitle = element_text(hjust=0.5)) +
+        scale_x_continuous(limits = c(0, max(dat)))
    
   })
   
   output$sc_table <- renderDataTable({
     
+    if(input$clustered == FALSE){
     dat = format(sampTab(), big.mark=",")
     # changes to evaluate in the data
     dat = as.data.frame(cbind(differs(), dat))
@@ -353,7 +352,15 @@ server <- function(input, output) {
     # selection = list(mode="single",
     # seleted = which(changes==1),
     # target = "row")
-    
+    } else if(input$clustered == TRUE){
+      dat = format(sampTab(), big.mark=",")
+      # changes to evaluate in the data
+      dat = as.data.frame(cbind(differs(), dat))
+      names(dat) = c("Differences", "Clusters if alpha is 0.01", 
+                     "Clusters if alpha is 0.05", "Clusters if alpha is 0.1")
+      
+      datatable(dat, rownames = FALSE)
+    }
   })
   
   output$downloadData <- downloadHandler(

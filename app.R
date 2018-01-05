@@ -356,24 +356,58 @@ server <- function(input, output, session) {
   
   output$sc_table <- renderDataTable({
     
-    if(input$clustered == FALSE){
-    dat = format(sampTab(), big.mark=",")
+    farmerCap = 'Values are the number of farmers per treatment arm'
+    clustCap = 'Values are the number of clusters per treatment arm'
+    
+    if(input$percentage==FALSE & input$clustered == FALSE){
+    dat = format(sampTab(), big.mark = ",")
     # changes to evaluate in the data
     dat = as.data.frame(cbind(differs(), dat))
     names(dat) = c("Differences", "Alpha is 0.01", "Alpha is 0.05", "Alpha is 0.1")
     
-    datatable(dat, rownames = FALSE)
-    # selection = list(mode="single",
-    # seleted = which(changes==1),
-    # target = "row")
-    } else if(input$clustered == TRUE){
-      dat = format(sampTab(), big.mark=",")
+    datatable(dat, rownames = FALSE, 
+              options = list(pageLength = nrow(dat)),
+              selection = list(mode = "single", 
+                               selected=which(dat$Differences == input$sc_diff_m),
+                               target="row"),
+              caption = farmerCap)
+    
+    } else if(input$percentage==FALSE & input$clustered == TRUE){
+      dat = format(sampTab(), big.mark = ",")
       # changes to evaluate in the data
       dat = as.data.frame(cbind(differs(), dat))
-      names(dat) = c("Differences", "Clusters if alpha is 0.01", 
-                     "Clusters if alpha is 0.05", "Clusters if alpha is 0.1")
+      names(dat) = c("Differences", "Alpha is 0.01", "Alpha is 0.05", "Alpha is 0.1")
       
-      datatable(dat, rownames = FALSE)
+      datatable(dat, rownames = FALSE,  
+                options = list(pageLength = nrow(dat)),
+                selection = list(mode = "single", 
+                                 selected=which(dat$Differences == input$sc_diff_mc),
+                                 target="row"),
+                caption = clustCap)
+    } else if(input$percentage==TRUE & input$clustered==FALSE){
+      dat = format(sampTab(), big.mark = ",")
+      # changes to evaluate in the data
+      dat = as.data.frame(cbind(differs(), dat))
+      names(dat) = c("Differences", "Alpha is 0.01", "Alpha is 0.05", "Alpha is 0.1")
+      
+      datatable(dat, rownames = FALSE,  
+                options = list(pageLength = nrow(dat)),
+                selection = list(mode = "single", 
+                                 selected=which(dat$Differences == input$sc_diff_p),
+                                 target="row"),
+                caption = farmerCap)
+    } else if(input$percentage==TRUE & input$clustered==TRUE){
+      dat = format(sampTab(), big.mark = ",")
+      # changes to evaluate in the data
+      dat = as.data.frame(cbind(differs(), dat))
+      names(dat) = c("Differences", "Alpha is 0.01", "Alpha is 0.05", "Alpha is 0.1")
+      
+      datatable(dat, rownames = FALSE,  
+                options = list(pageLength = nrow(dat)),
+                selection = list(mode = "single", 
+                                 selected=which(dat$Differences == input$sc_diff_pc),
+                                 target="row"),
+                caption = clustCap)
     }
   })
   
@@ -388,38 +422,49 @@ server <- function(input, output, session) {
   )
   
   output$nrequired <- renderUI({
+    
+    normalMsg = c("To achieve 80%% power and an alpha of 0.05 for a decision threshold of %d you'll need %s farmers per treatment arm")
+    clusterMsg = c("To achieve 80%% power and an alpha of 0.05 for a decision threshold of %d, you'll need %s, 
+                       clusters per treatment arm and %s farmers total per treatment arm")
+    percentMsg = c("To achieve 80%% power and an alpha of 0.05 for a decision threshold of %d%% you'll need 
+                   %s farmers")
+    bothMsg = c("To achieve 80%% power and an alpha of 0.05 for a decision threshold of %d%% you'll need 
+                %s clusters per treatment arm and %s farmers total per treatment arm")
+    
     if(input$percentage==FALSE & input$clustered == FALSE){
       dat = sampTab()
       target = input$sc_diff_m
-      samp_out = round(dat[differs()==input$sc_diff_m,2],0) # update this
+      samp_out = format(round(dat[differs()==input$sc_diff_m,2],0), big.mark = ",")
       
-      str1 = paste("To achieve 80% power and an alpha of 0.05 for a decision threshold of ", target, " you'll need ", samp_out, " farmers per treatment arm", sep = "")
+      str1 = sprintf(normalMsg, target, samp_out)
+      
     } else if(input$percentage == FALSE & input$clustered == TRUE) {
       dat = sampTab()
-      target = input$sc_diff_m
+      target = input$sc_diff_mc
       
-      samp_out = round(dat[differs()==input$sc_diff_m,2],0) 
+      samp_out = round(dat[differs()==input$sc_diff_mc,2],0)
+      farmersArm = format(samp_out * input$sc_clustN_c, big.mark = ",")
+      samp_out = format(samp_out, big.mark = ",")
       
-      str1 = paste("To achieve 80% power and an alpha of 0.05 for a decision threshold of ", target, " you'll need ", format(samp_out, big.mark=","), 
-                   " clusters per treatment arm and ", samp_out * input$sc_clustN, " farmers tota per treatment arml",  sep = "")
+      str1 = sprintf(clusterMsg, target, samp_out, farmersArm)
       
     } else if(input$percentage == TRUE & input$clustered == FALSE) {
       dat = sampTab()
-      target = input$sc_diff_m
+      target = input$sc_diff_p
       
-      samp_out = round(dat[differs()==input$sc_diff_m,2],0) 
+      samp_out = format(round(dat[differs()==input$sc_diff_p,2],0), big.mark = ",")
       
-      str1 = paste("To achieve 80% power and an alpha of 0.05 for a decision threshold of ", target, "% you'll need ", format(samp_out, big.mark=","), 
-                   " clusters per treatment arm ",  sep = "")
+      str1 = sprintf(percentMsg, target, samp_out)
       
     } else if(input$percentage == TRUE & input$clustered == TRUE) {
       dat = sampTab()
-      target = input$sc_diff_m
+      target = input$sc_diff_pc
       
-      samp_out = round(dat[differs()==input$sc_diff_m,2],0) 
+      samp_out = round(dat[differs()==input$sc_diff_pc,2],0)
+      farmersArm = format(samp_out * input$sc_clustN_pc, big.mark = ",")
+      samp_out = format(samp_out, big.mark = ",")
       
-      str1 = paste("To achieve 80% power and an alpha of 0.05 for a decision threshold of ", target, "% you'll need ", format(samp_out, big.mark=","), 
-                   " clusters per treatment arm and ", samp_out * input$sc_clustN, " farmers total per treatment arm",  sep = "")
+      str1 = sprintf(bothMsg, target, samp_out, farmersArm)
       
     }
   })

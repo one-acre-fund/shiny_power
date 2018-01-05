@@ -432,6 +432,7 @@ server <- function(input, output, session) {
     bothMsg = c("To achieve 80%% power and an alpha of 0.05 for a decision threshold of %d%% you'll need 
                 %s clusters per treatment arm and %s farmers total per treatment arm")
     
+
     if(input$percentage==FALSE & input$clustered == FALSE){
       dat = sampTab()
       target = input$sc_diff_m

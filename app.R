@@ -484,10 +484,9 @@ server <- function(input, output, session) {
     nOps = input$mde_n * mde_changes
   })
   
-  # minimum detectable effect
-  output$mde_plot <- renderPlot({
-    # only changes greater than 0
-    
+  
+  mde_dat <- reactive({
+    req(input$mde_n)
     dat = do.call(rbind, lapply(nOps(), function(x){
       res = posthoc_mde(x)
       return(res)
@@ -495,16 +494,23 @@ server <- function(input, output, session) {
     
     dat = data.frame(dat, n = nOps()) %>%
       setNames(c("a1", "a5", "a10", "n"))
+  })
+  
+  
+  
+  # minimum detectable effect
+  output$mde_plot <- renderPlot({
+    req(input$mde_n)
     
     #dat = data.frame(d = unlist(lapply(nOps(), posthoc_mde)), n = nOps())
     
     ggplot() + 
-      geom_line(data = dat, aes(x = n, y = a1), size = 1.2, color="green") +
-      geom_point(data=dat[which(mde_changes==1),], aes(x = n, y = a1), size=3) +
-      geom_line(data = dat, aes(x = n, y = a5), size = 1.2, color="blue") +
-      geom_point(data=dat[which(mde_changes==1),], aes(x = n, y = a5), size=3) +
-      geom_line(data = dat, aes(x = n, y = a10), size = 1.2, color="red") +
-      geom_point(data=dat[which(mde_changes==1),], aes(x = n, y = a10), size=3) +
+      geom_line(data = mde_dat(), aes(x = n, y = a1), size = 1.2, color="green") +
+      geom_point(data=mde_dat()[which(mde_changes==1),], aes(x = n, y = a1), size=3) +
+      geom_line(data = mde_dat(), aes(x = n, y = a5), size = 1.2, color="blue") +
+      geom_point(data=mde_dat()[which(mde_changes==1),], aes(x = n, y = a5), size=3) +
+      geom_line(data = mde_dat(), aes(x = n, y = a10), size = 1.2, color="red") +
+      geom_point(data=mde_dat()[which(mde_changes==1),], aes(x = n, y = a10), size=3) +
       labs(x = "Sample size", y = "Minimum detectable effect (d)", 
            title = "Miniumum detectable effect for given sample size") + 
       theme(plot.title = element_text(hjust = 0.5, size = 20))

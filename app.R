@@ -6,6 +6,7 @@ library(ggplot2)
 library(knitr)
 library(DT)
 library(clusterPower)
+library(reshape2)
 
 # general functions for use
 cohen_d <- function(d1,d2) {  
@@ -104,7 +105,11 @@ posthoc_mde = function(n_length){
   # spo = sqrt((s1**2 + s2**2)/2)
   spo = 2 # this is crude but need to have some sort of inflation factor until I figure out why we need this.
   
-  mded = pwr.t.test(n = n_length, d=NULL, sig.level = 0.05, power=0.8, type="two.sample", alternative = "two.sided")$d
+  a1 = pwr.t.test(n = n_length, d=NULL, sig.level = 0.01, power=0.8, type="two.sample", alternative = "two.sided")$d
+  a5 = pwr.t.test(n = n_length, d=NULL, sig.level = 0.05, power=0.8, type="two.sample", alternative = "two.sided")$d
+  a10 = pwr.t.test(n = n_length, d=NULL, sig.level = 0.1, power=0.8, type="two.sample", alternative = "two.sided")$d
+  
+  mded = as.data.frame(cbind(a1, a5, a10))
   
   mded = mded * spo
   return(mded)
@@ -139,7 +144,7 @@ ui <- navbarPage("Practical Power Calculations",
                              "Outcome standard deviation",
                              value = 50),
                 numericInput("sc_diff_m",
-                             "Magnitude change over control",
+                             "Absolute change over control",
                              value = 10)
               ), #conditional panel1
               conditionalPanel(
@@ -151,7 +156,7 @@ ui <- navbarPage("Practical Power Calculations",
                              "Outcome standard deviation",
                              value = 50),
                 numericInput("sc_diff_mc",
-                             "Magnitude change over control",
+                             "Absolute change over control",
                              value = 10),
                 sliderInput("ICC_c", 
                             "Intra-cluster Correlation", 
@@ -428,7 +433,7 @@ server <- function(input, output, session) {
     clusterMsg = c("To achieve 80%% power and an alpha of 0.05 for a decision threshold of %d, you'll need %s, 
                        clusters per treatment arm and %s farmers total per treatment arm")
     percentMsg = c("To achieve 80%% power and an alpha of 0.05 for a decision threshold of %d%% you'll need 
-                   %s farmers")
+                   %s farmers per treatment arm")
     bothMsg = c("To achieve 80%% power and an alpha of 0.05 for a decision threshold of %d%% you'll need 
                 %s clusters per treatment arm and %s farmers total per treatment arm")
     
@@ -480,15 +485,33 @@ server <- function(input, output, session) {
     nOps = input$mde_n * mde_changes
   })
   
+  
+  mde_dat <- reactive({
+    req(input$mde_n)
+    dat = do.call(rbind, lapply(nOps(), function(x){
+      res = posthoc_mde(x)
+      return(res)
+    }))
+    
+    dat = data.frame(dat, n = nOps()) %>%
+      setNames(c("a1", "a5", "a10", "n"))
+  })
+  
+  
+  
   # minimum detectable effect
   output$mde_plot <- renderPlot({
-    # only changes greater than 0
+    req(input$mde_n)
     
-    dat = data.frame(d = unlist(lapply(nOps(), posthoc_mde)), n = nOps())
+    #dat = data.frame(d = unlist(lapply(nOps(), posthoc_mde)), n = nOps())
     
-    ggplot(dat, aes(x = n, y = d)) + 
-      geom_line(size = 1.2) +
-      geom_point(data=dat[which(mde_changes==1),], aes(x = n, y = d), size=3) + 
+    ggplot() + 
+      geom_line(data = mde_dat(), aes(x = n, y = a1), size = 1.2, color="green") +
+      geom_point(data=mde_dat()[which(mde_changes==1),], aes(x = n, y = a1), size=3) +
+      geom_line(data = mde_dat(), aes(x = n, y = a5), size = 1.2, color="blue") +
+      geom_point(data=mde_dat()[which(mde_changes==1),], aes(x = n, y = a5), size=3) +
+      geom_line(data = mde_dat(), aes(x = n, y = a10), size = 1.2, color="red") +
+      geom_point(data=mde_dat()[which(mde_changes==1),], aes(x = n, y = a10), size=3) +
       labs(x = "Sample size", y = "Minimum detectable effect (d)", 
            title = "Miniumum detectable effect for given sample size") + 
       theme(plot.title = element_text(hjust = 0.5, size = 20))
@@ -497,20 +520,32 @@ server <- function(input, output, session) {
   
   output$mde_table <- renderDataTable({
     if(is.null(input$mde_sd)){
-    dat = data.frame(n = nOps(), d = round(unlist(lapply(nOps(), posthoc_mde)),3))
-    names(dat) = c("Sample Size", "Effect Size")
+    
+    dat = melt(mde_dat(), id.vars = "n") %>%
+      mutate(variable = ifelse(variable == "a1", "0.1",
+                        ifelse(variable == "a5", "0.05", "0.01")),
+             value = round(value, 3))
+    
+    names(dat) = c("Sample Size", "Alpha level less than", "Effect Size")
     datatable(dat, rownames = FALSE, selection = list(mode = "single", 
                                                       selected=which(mde_changes==1),
-                                                      target="row"))
+                                                      target="row"),
+              filter = 'top',
+              options = list(pageLength = nrow(dat)))
     } else {
-      dat = data.frame(n = nOps(), 
-                       d = round(unlist(lapply(nOps(), posthoc_mde)),3))
       
-      dat$mu = dat$d * input$mde_sd
-      names(dat) = c("Sample Size", "Effect Size", "Average difference")
+      dat = melt(mde_dat(), id.vars = "n") %>%
+        dplyr::mutate(variable = ifelse(variable == "a1", "0.1",
+                                 ifelse(variable == "a5", "0.05", "0.01")),
+                      value = round(value, 3))
+      
+      dat$mu = dat$value * input$mde_sd
+      names(dat) = c("Sample Size", "Alpha level less than", "Effect Size", "Average Difference")
       datatable(dat, rownames = FALSE, selection = list(mode = "single", 
                                                         selected=which(mde_changes==1),
-                                                        target="row"))
+                                                        target="row"),
+                filter = 'top',
+                options = list(pageLength = nrow(dat)))
     }
   })
   

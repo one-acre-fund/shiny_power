@@ -519,6 +519,7 @@ server <- function(input, output, session) {
   
   output$mde_table <- renderDataTable({
     if(is.null(input$mde_sd)){
+    
     dat = data.frame(n = nOps(), d = round(unlist(lapply(nOps(), posthoc_mde)),3))
     names(dat) = c("Sample Size", "Effect Size")
     datatable(dat, rownames = FALSE, selection = list(mode = "single", 

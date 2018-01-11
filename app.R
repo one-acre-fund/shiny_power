@@ -6,6 +6,7 @@ library(ggplot2)
 library(knitr)
 library(DT)
 library(clusterPower)
+library(reshape2)
 
 # general functions for use
 cohen_d <- function(d1,d2) {  
@@ -520,20 +521,31 @@ server <- function(input, output, session) {
   output$mde_table <- renderDataTable({
     if(is.null(input$mde_sd)){
     
-    dat = data.frame(n = nOps(), d = round(unlist(lapply(nOps(), posthoc_mde)),3))
-    names(dat) = c("Sample Size", "Effect Size")
+    dat = melt(mde_dat(), id.vars = "n") %>%
+      mutate(variable = ifelse(variable == "a1", "0.1",
+                        ifelse(variable == "a5", "0.05", "0.01")),
+             value = round(value, 3))
+    
+    names(dat) = c("Sample Size", "Alpha level less than", "Effect Size")
     datatable(dat, rownames = FALSE, selection = list(mode = "single", 
                                                       selected=which(mde_changes==1),
-                                                      target="row"))
+                                                      target="row"),
+              filter = 'top',
+              options = list(pageLength = nrow(dat)))
     } else {
-      dat = data.frame(n = nOps(), 
-                       d = round(unlist(lapply(nOps(), posthoc_mde)),3))
       
-      dat$mu = dat$d * input$mde_sd
-      names(dat) = c("Sample Size", "Effect Size", "Average difference")
+      dat = melt(mde_dat(), id.vars = "n") %>%
+        dplyr::mutate(variable = ifelse(variable == "a1", "0.1",
+                                 ifelse(variable == "a5", "0.05", "0.01")),
+                      value = round(value, 3))
+      
+      dat$mu = dat$value * input$mde_sd
+      names(dat) = c("Sample Size", "Alpha level less than", "Effect Size", "Average Difference")
       datatable(dat, rownames = FALSE, selection = list(mode = "single", 
                                                         selected=which(mde_changes==1),
-                                                        target="row"))
+                                                        target="row"),
+                filter = 'top',
+                options = list(pageLength = nrow(dat)))
     }
   })
   

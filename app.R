@@ -391,9 +391,12 @@ server <- function(input, output, session) {
                 caption = clustCap)
     } else if(input$percentage==TRUE & input$clustered==FALSE){
       dat = format(sampTab(), big.mark = ",")
-      # changes to evaluate in the data
-      dat = as.data.frame(cbind(differs(), dat))
-      names(dat) = c("Differences", "Alpha is 0.01", "Alpha is 0.05", "Alpha is 0.1")
+      # changes to evaluate in the data >> show both magnitude and percentage
+      percentage = ((input$sc_diff_p + changes)/100)[((input$sc_diff_p + changes)/100)>0]
+      
+      
+      dat = as.data.frame(cbind(differs(), percentage, dat))
+      names(dat) = c("Differences", "Percent Change", "Alpha is 0.01", "Alpha is 0.05", "Alpha is 0.1")
       
       datatable(dat, rownames = FALSE,  
                 options = list(pageLength = nrow(dat)),
@@ -404,8 +407,10 @@ server <- function(input, output, session) {
     } else if(input$percentage==TRUE & input$clustered==TRUE){
       dat = format(sampTab(), big.mark = ",")
       # changes to evaluate in the data
-      dat = as.data.frame(cbind(differs(), dat))
-      names(dat) = c("Differences", "Alpha is 0.01", "Alpha is 0.05", "Alpha is 0.1")
+      percentage = ((input$sc_diff_pc + changes)/100)[((input$sc_diff_pc + changes)/100)>0]
+      
+      dat = as.data.frame(cbind(differs(), percentage, dat))
+      names(dat) = c("Differences", "Percent Change", "Alpha is 0.01", "Alpha is 0.05", "Alpha is 0.1")
       
       datatable(dat, rownames = FALSE,  
                 options = list(pageLength = nrow(dat)),

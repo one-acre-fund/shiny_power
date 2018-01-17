@@ -1,5 +1,5 @@
 # shiny_power
-Power calculator in R Shiny to facilitate trial design calculations
+[Power calculator in R Shiny](https://mattlowes-1af.shinyapps.io/shiny_power/) to facilitate trial design calculations
 
 This shiny app is intended to fill the specific needs of 1AF trial designers. Specifically, the app translates the language of power calculations to the language of 1AF research resource use efficiecy. The current functions are:
 

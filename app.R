@@ -299,14 +299,14 @@ server <- function(input, output, session) {
       toTest = input$sc_diff_m + changes
       toTest = toTest[toTest>0]
       return(toTest)
-    } else if(input$percentage==TRUE & input$clustered==FALSE){
-      req(input$sc_mean, input$sc_stdev, input$sc_diff_p)
-      toTest = ((input$sc_diff_p + changes)/100) * input$sc_mean
-      toTest = toTest[toTest>0]
-      return(toTest)
     } else if(input$percentage==FALSE & input$clustered==TRUE){
       req(input$sc_mean_c, input$sc_stdev_c, input$sc_diff_mc)
       toTest = input$sc_diff_mc + changes
+      toTest = toTest[toTest>0]
+      return(toTest)
+    } else if(input$percentage==TRUE & input$clustered==FALSE){
+      req(input$sc_mean, input$sc_stdev, input$sc_diff_p)
+      toTest = ((input$sc_diff_p + changes)/100) * input$sc_mean_p
       toTest = toTest[toTest>0]
       return(toTest)
     } else if(input$percentage==TRUE & input$clustered==TRUE){
@@ -398,7 +398,7 @@ server <- function(input, output, session) {
       datatable(dat, rownames = FALSE,  
                 options = list(pageLength = nrow(dat)),
                 selection = list(mode = "single", 
-                                 selected=which(dat$Differences == input$sc_diff_p),
+                                 selected=which(dat$Differences == ((input$sc_diff_p/100)*input$sc_mean_p)),
                                  target="row"),
                 caption = farmerCap)
     } else if(input$percentage==TRUE & input$clustered==TRUE){
@@ -410,12 +410,14 @@ server <- function(input, output, session) {
       datatable(dat, rownames = FALSE,  
                 options = list(pageLength = nrow(dat)),
                 selection = list(mode = "single", 
-                                 selected=which(dat$Differences == input$sc_diff_pc),
+                                 selected=which(dat$Differences == ((input$sc_diff_pc)/100*input$sc_mean_pc)),
                                  target="row"),
                 caption = clustCap)
     }
   })
   
+  
+  # download data
   output$downloadData <- downloadHandler(
     filename = function() {
       paste("sampleSize ", Sys.Date(), ".csv", sep = "")
@@ -459,7 +461,7 @@ server <- function(input, output, session) {
       dat = sampTab()
       target = input$sc_diff_p
       
-      samp_out = format(round(dat[differs()==input$sc_diff_p,2],0), big.mark = ",")
+      samp_out = format(round(dat[differs()==((input$sc_diff_p/100)*input$sc_mean_p),2],0), big.mark = ",")
       
       str1 = sprintf(percentMsg, target, samp_out)
       
@@ -467,7 +469,7 @@ server <- function(input, output, session) {
       dat = sampTab()
       target = input$sc_diff_pc
       
-      samp_out = round(dat[differs()==input$sc_diff_pc,2],0)
+      samp_out = round(dat[differs()==((input$sc_diff_pc)/100*input$sc_mean_pc),2],0)
       farmersArm = format(samp_out * input$sc_clustN_pc, big.mark = ",")
       samp_out = format(samp_out, big.mark = ",")
       

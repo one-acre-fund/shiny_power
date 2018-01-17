@@ -233,7 +233,8 @@ ui <- navbarPage("Practical Power Calculations",
                                       value = 100),
                          numericInput("mde_sd",
                                       "Standard deviation of outcome",
-                                      value = NULL)
+                                      value = NULL),
+                         downloadButton("downloadMde", "Download Result")
                      ) #wellpanel layout
               ), # column close
               column(8,
@@ -492,7 +493,6 @@ server <- function(input, output, session) {
     nOps = input$mde_n * mde_changes
   })
   
-  
   mde_dat <- reactive({
     req(input$mde_n)
     dat = do.call(rbind, lapply(nOps(), function(x){
@@ -502,6 +502,7 @@ server <- function(input, output, session) {
     
     dat = data.frame(dat, n = nOps()) %>%
       setNames(c("a1", "a5", "a10", "n"))
+    return(dat)
   })
   
   
@@ -525,36 +526,52 @@ server <- function(input, output, session) {
       
   })
   
-  output$mde_table <- renderDataTable({
+  # do all transformations separate from datatable
+  mde_tab <- reactive({
     if(is.null(input$mde_sd)){
+      
+      dat = melt(mde_dat(), id.vars = "n") %>%
+        dplyr::mutate(variable = ifelse(variable == "a1", "0.1",
+                                        ifelse(variable == "a5", "0.05", "0.01")),
+                      value = round(value, 3))  
+      
+      names(dat) = c("Sample Size", "Alpha level less than", "Effect Size")
+      dat = as.data.frame(dat)
     
-    dat = melt(mde_dat(), id.vars = "n") %>%
-      mutate(variable = ifelse(variable == "a1", "0.1",
-                        ifelse(variable == "a5", "0.05", "0.01")),
-             value = round(value, 3))
-    
-    names(dat) = c("Sample Size", "Alpha level less than", "Effect Size")
-    datatable(dat, rownames = FALSE, selection = list(mode = "single", 
-                                                      selected=which(mde_changes==1),
-                                                      target="row"),
-              filter = 'top',
-              options = list(pageLength = nrow(dat)))
     } else {
       
       dat = melt(mde_dat(), id.vars = "n") %>%
         dplyr::mutate(variable = ifelse(variable == "a1", "0.1",
-                                 ifelse(variable == "a5", "0.05", "0.01")),
+                                        ifelse(variable == "a5", "0.05", "0.01")),
                       value = round(value, 3))
       
       dat$mu = dat$value * input$mde_sd
       names(dat) = c("Sample Size", "Alpha level less than", "Effect Size", "Average Difference")
-      datatable(dat, rownames = FALSE, selection = list(mode = "single", 
-                                                        selected=which(mde_changes==1),
-                                                        target="row"),
-                filter = 'top',
-                options = list(pageLength = nrow(dat)))
+      dat = as.data.frame(dat)
     }
   })
+  
+  # mde output table
+  output$mde_table <- renderDataTable({
+    
+    datatable(mde_tab(), rownames = FALSE, selection = list(mode = "single", 
+                                                      selected=which(mde_changes==1),
+                                                      target="row"),
+              filter = 'top',
+              options = list(pageLength = 20))
+   
+  })
+  
+  # download mde result
+  output$downloadMde <- downloadHandler(
+    filename = function() {
+      paste("mdeResult ", Sys.Date(), ".csv", sep = "")
+    },
+    
+    content = function(file) {
+      write.csv(mde_tab(), file, row.names = FALSE)
+    }
+  )
   
   # ppv
   plotTiles <- eventReactive(input$makeGraph, {

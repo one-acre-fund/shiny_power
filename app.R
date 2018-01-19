@@ -281,13 +281,15 @@ ui <- navbarPage("Practical Power Calculations",
                     )
                 ) #fluidRow
         ),# tab panel close      
-  tabPanel("Alpha Power Matrix (wip)",
+  tabPanel("Alpha Power Matrix",
            fluidRow(
              column(12,
                     wellPanel(
                       helpText("The purpose of this tab is to present the menu of feasible alpha
                                and power combinations available to trial designers given a difference
-                               of interest and a sample size (budget)")
+                               of interest and certain budget (sample size). This tab is most useful if trial designers
+                               come with a clear picture of what an appropriate budget and sample size are
+                               given the question of interest.")
                       )),
              column(4,
                     wellPanel(
@@ -309,7 +311,7 @@ ui <- navbarPage("Practical Power Calculations",
              ), # column close
              column(8,
                     wellPanel(
-                      plotOutput("ap_plot"),
+                      plotOutput("ap_plot", click = "plot_click"),
                       br(),
                       htmlOutput("ap_text")
                     )
@@ -680,8 +682,8 @@ server <- function(input, output, session) {
   })
   
   
-  # alpha power matrix
-  plotAlphaPower <- eventReactive(input$makeAlphaPower, {
+  
+  apDat <- eventReactive(input$makeAlphaPower, {
     samp1 <- rnorm(n=1000, mean = input$ap_mean, sd=input$ap_stdev)
     #this is a better version if you can understand it:
     samp2 <- samp1 + rnorm(length(samp1), input$ap_diff, input$ap_diff/10) #add some noise
@@ -701,9 +703,11 @@ server <- function(input, output, session) {
         }, error = function(e){
           n <- NA
         })
+        
+        figs = data.frame(pval, powerNum, result)
+        return(figs)
+        
       }))
-      
-      #return(data.frame(pow = powerNum, pval = pval, samp=n))
     }))
     
     #make graph
@@ -715,11 +719,22 @@ server <- function(input, output, session) {
     # categ_table <- round(table(var) * ((nrows*nrows)/(length(var))))
     # categ_table
     df <- cbind(df, res)
-    df$check <- ifelse(df$res <= input$ap_samp/2, TRUE, FALSE) # TRUE IS GOOD, FALSE IS BAD
+    df$result <- round(df$result)
+    df$check <- ifelse(df$result <= input$ap_samp, TRUE, FALSE) # TRUE IS GOOD, FALSE IS BAD
     
     #df$category <- factor(rep(names(categ_table), categ_table))
-    df$category <- factor(ifelse(df$check==FALSE, "Need bigger sample", 
-                          ifelse(df$check==TRUE, "Current sample sufficient","NA")))
+    df$category <- factor(ifelse(df$check==TRUE, "Current sample sufficient", 
+                                 ifelse(df$check==FALSE, "Need bigger sample", "NA")))
+    return(df)
+  })
+  
+  # alpha power matrix
+  plotAlphaPower <- eventReactive(input$makeAlphaPower, {
+    
+    df <- apDat()
+    
+    pvals <- seq(0.05, 0.5, by=0.05)
+    powerVals <- seq(0.5, 0.95, by=0.05)
     
     ggplot(df, aes(x = x, y = y, fill = category)) + 
       geom_tile(color = "black", size = 0.5) +
@@ -743,10 +758,28 @@ server <- function(input, output, session) {
     plotAlphaPower()
   })
   
-  # #alpha power text
-  # output$ap_text <- renderText({
-  #   
-  # })
+  # for clicking on the plot
+  clickDat <- reactive({
+    clickCoords = data.frame(x = round(as.numeric(input$plot_click$x)), y=round(as.numeric(input$plot_click$y)))
+    df = apDat()
+    val = df[df$x==clickCoords$x & df$y==clickCoords$y, c("result", "pval", "powerNum")]
+    return(val)
+  })
+  
+  #alpha power text
+  output$ap_text <- renderUI({
+
+    dat = clickDat()
+    dat$pval = round(dat$pval,2)
+    #dat$wrong = dat$pval * (1-dat$powerNum)*100
+    #normalWrong = (0.05*0.2)*100
+    
+    #dat$increase = (dat$wrong - normalWrong)/normalWrong
+    boiler = "This combination is an alpha of %s and power of %d%% requires a sample of %d. This means we have a %s%% chance of a false positive and a %s%% chance of a false negative."
+    str = sprintf(boiler, as.character(dat$pval), dat$powerNum*100, dat$result, as.character(dat$pval*100), as.character((1-dat$powerNum)*100))
+    return(str)
+
+  })
   
   
   

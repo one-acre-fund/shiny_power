@@ -280,7 +280,42 @@ ui <- navbarPage("Practical Power Calculations",
                              )
                     )
                 ) #fluidRow
-        )# tab panel close      
+        ),# tab panel close      
+  tabPanel("Alpha Power Matrix (wip)",
+           fluidRow(
+             column(12,
+                    wellPanel(
+                      helpText("The purpose of this tab is to present the menu of feasible alpha
+                               and power combinations available to trial designers given a difference
+                               of interest and a sample size (budget)")
+                      )),
+             column(4,
+                    wellPanel(
+                      numericInput("ap_mean",
+                                   "Outcome average",
+                                   value = 150),
+                      numericInput("ap_stdev",
+                                   "Outcome standard deviation",
+                                   value = 80),
+                      numericInput("ap_diff",
+                                   "Absolute change over control",
+                                   value = 25),
+                      numericInput("ap_samp",
+                                   "Available sample size",
+                                   value=300),
+                      br(),
+                      actionButton("makeAlphaPower", "Generate graph")
+                    ) #wellpanel layout
+             ), # column close
+             column(8,
+                    wellPanel(
+                      plotOutput("ap_plot"),
+                      br(),
+                      htmlOutput("ap_text")
+                    )
+             )
+                      ) #fluidRow
+             )# tab panel close      
 )
 
 
@@ -605,6 +640,7 @@ server <- function(input, output, session) {
       scale_x_continuous(expand = c(0, 0)) +
       scale_y_continuous(expand = c(0, 0), trans = 'reverse') +
       scale_fill_brewer(palette = "Set3") +
+      #coord_equal() +
       labs(title="Hypotheses: Why power matters for finding true effects", 
            subtitle="Being powerful is good",
            caption="Source: the Economist",
@@ -642,6 +678,77 @@ server <- function(input, output, session) {
   output$ppv_percent <- renderText({
     trueAlpha()
   })
+  
+  
+  # alpha power matrix
+  plotAlphaPower <- eventReactive(input$makeAlphaPower, {
+    samp1 <- rnorm(n=1000, mean = input$ap_mean, sd=input$ap_stdev)
+    #this is a better version if you can understand it:
+    samp2 <- samp1 + rnorm(length(samp1), input$ap_diff, input$ap_diff/10) #add some noise
+    inp <- abs(cohen_d(samp1, samp2)$effectsi)
+    
+    pvals <- seq(0.05, 0.5, by=0.05)
+    powerVals <- seq(0.5, 0.95, by=0.05)
+    
+    res <- do.call(rbind, lapply(pvals, function(pval){
+      
+      do.call(rbind, lapply(powerVals, function(powerNum){
+        
+        result = tryCatch({
+          n <- pwr.2p.test(h=inp, sig.level=pval, power = powerNum, n=NULL)$n
+        }, warning = function(w) {
+          n <- NA
+        }, error = function(e){
+          n <- NA
+        })
+      }))
+      
+      #return(data.frame(pow = powerNum, pval = pval, samp=n))
+    }))
+    
+    #make graph
+    nrows <- length(pvals)
+    df <- expand.grid(y = 1:nrows, x = 1:nrows)
+    
+    # var = c(rep("1. False Hypotheses", falseHypo), rep("2. False Positives", falsePos),
+    #         rep("3. False Negatives", falseNeg), rep("4. True Positives", truePos))
+    # categ_table <- round(table(var) * ((nrows*nrows)/(length(var))))
+    # categ_table
+    df <- cbind(df, res)
+    df$check <- ifelse(df$res <= input$ap_samp/2, TRUE, FALSE) # TRUE IS GOOD, FALSE IS BAD
+    
+    #df$category <- factor(rep(names(categ_table), categ_table))
+    df$category <- factor(ifelse(df$check==FALSE, "Need bigger sample", 
+                          ifelse(df$check==TRUE, "Current sample sufficient","NA")))
+    
+    ggplot(df, aes(x = x, y = y, fill = category)) + 
+      geom_tile(color = "black", size = 0.5) +
+      geom_text(label = round(df$res, 1)) +
+      scale_x_continuous(expand = c(0, 0), breaks = unique(df$x), labels = pvals) +
+      scale_y_continuous(expand = c(0, 0), trans = 'reverse', breaks = unique(df$y), labels = powerVals) +
+      scale_fill_brewer(palette = "Set3") +
+      #coord_equal() +
+      labs(title="Trade-offs of alpha and power", 
+           caption="Source: our brainz",
+           x = "p-values (decreasing)", y = "Power", category = "Labels") + 
+      theme(legend.position = "bottom")
+    
+    
+    
+  })
+  
+  
+  #alpha power plot
+  output$ap_plot <- renderPlot({
+    plotAlphaPower()
+  })
+  
+  # #alpha power text
+  # output$ap_text <- renderText({
+  #   
+  # })
+  
+  
   
 }
 

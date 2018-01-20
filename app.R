@@ -288,8 +288,10 @@ ui <- navbarPage("Practical Power Calculations",
                       helpText("The purpose of this tab is to present the menu of feasible alpha
                                and power combinations available to trial designers given a difference
                                of interest and certain budget (sample size). This tab is most useful if trial designers
-                               come with a clear picture of what an appropriate budget and sample size are
-                               given the question of interest.")
+                               come with a clear picture of what an appropriate budget and sample size are for the
+                               given the question of interest. By comparison, the earlier tabs assume the decision threshold is
+                               the key constraint, not the budget / sample size."),
+                      helpText("This power calculator is currently limited to magnitude changes for non-clustered randomized trials.")
                       )),
              column(4,
                     wellPanel(
@@ -748,7 +750,6 @@ server <- function(input, output, session) {
     
     
   })
-  
   
   #alpha power plot
   output$ap_plot <- renderPlot({

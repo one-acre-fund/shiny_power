@@ -681,7 +681,8 @@ server <- function(input, output, session) {
     trueAlpha()
   })
   
-  
+  pvals <- c(seq(0.01, 0.04, by=0.01), seq(0.05, 0.5, by=0.05))
+  powerVals <- c(seq(0.5, 0.95, by=0.05), seq(0.96, 0.99, by=0.01))
   
   apDat <- eventReactive(input$makeAlphaPower, {
     samp1 <- rnorm(n=1000, mean = input$ap_mean, sd=input$ap_stdev)
@@ -689,8 +690,6 @@ server <- function(input, output, session) {
     samp2 <- samp1 + rnorm(length(samp1), input$ap_diff, input$ap_diff/10) #add some noise
     inp <- abs(cohen_d(samp1, samp2)$effectsi)
     
-    pvals <- seq(0.05, 0.5, by=0.05)
-    powerVals <- seq(0.5, 0.95, by=0.05)
     
     res <- do.call(rbind, lapply(pvals, function(pval){
       
@@ -733,9 +732,6 @@ server <- function(input, output, session) {
     
     df <- apDat()
     
-    pvals <- seq(0.05, 0.5, by=0.05)
-    powerVals <- seq(0.5, 0.95, by=0.05)
-    
     ggplot(df, aes(x = x, y = y, fill = category)) + 
       geom_tile(color = "black", size = 0.5) +
       geom_text(label = round(df$res, 1)) +
@@ -743,10 +739,11 @@ server <- function(input, output, session) {
       scale_y_continuous(expand = c(0, 0), trans = 'reverse', breaks = unique(df$y), labels = powerVals) +
       scale_fill_brewer(palette = "Set3") +
       #coord_equal() +
-      labs(title="Trade-offs of alpha and power", 
+      labs(title="Trade-offs of alpha and power for a given effect and budget", 
            caption="Source: our brainz",
-           x = "p-values (decreasing)", y = "Power", category = "Labels") + 
-      theme(legend.position = "bottom")
+           x = "p-values", y = "Power", category = "Labels") + 
+      theme(legend.position = "bottom",
+            plot.title = element_text(hjust = 0.5,size = 15))
     
     
     
@@ -775,8 +772,8 @@ server <- function(input, output, session) {
     #normalWrong = (0.05*0.2)*100
     
     #dat$increase = (dat$wrong - normalWrong)/normalWrong
-    boiler = "This combination is an alpha of %s and power of %d%% requires a sample of %d. This means we have a %s%% chance of a false positive and a %s%% chance of a false negative."
-    str = sprintf(boiler, as.character(dat$pval), dat$powerNum*100, dat$result, as.character(dat$pval*100), as.character((1-dat$powerNum)*100))
+    boiler = "This combination is an alpha of %s and power of %s%% requires a sample of %s. This means we have a %s%% chance of a false positive and a %s%% chance of a false negative."
+    str = sprintf(boiler, as.character(dat$pval), as.character(dat$powerNum*100), as.character(dat$result), as.character(dat$pval*100), as.character((1-dat$powerNum)*100))
     return(str)
 
   })

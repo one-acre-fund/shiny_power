@@ -7,6 +7,7 @@ library(knitr)
 library(DT)
 library(clusterPower)
 library(reshape2)
+library(lsr)
 
 # general functions for use
 cohen_d <- function(d1,d2) {  
@@ -14,7 +15,7 @@ cohen_d <- function(d1,d2) {
   m2 <- mean(d2, na.rm=TRUE)
   s1 <- sd(d1, na.rm=TRUE)
   s2 <- sd(d2, na.rm=TRUE)
-  spo <- sqrt((s1**2 + s2**2)/2)
+  spo <- sqrt(((s1**2) + (s2**2))/2)
   d <- (m1 - m2)/spo
   effsi <- d / sqrt((d**2)+4)
   ret <- list("d" = d, "effectsi" = effsi)
@@ -23,42 +24,29 @@ cohen_d <- function(d1,d2) {
   } 
 
 
-# right now this only works with the typical alpha levels
-# I don't think we need to allow more precision than that but conceivable 
-# people might want to look at alpha levels in between those typical thresholds.
-
-# add in some notes to test making commits through githubs
-
-# look at how 
-
-
 dat_MDE <- function(mean.input, sd.input, differs){
   #initialise empty vec
-  p <- matrix(NA, nrow = 20, ncol=3)
+  p <- NULL
+  p <- matrix(NA, nrow = length(differs), ncol=3)
   
   set.seed(20171101)
-  for(i in seq(1:length(differs)) ) {
+  for(i in 1:length(differs)) {
     samp1 <- rnorm(n=1000, mean = mean.input, sd=sd.input)
     #this is a better version if you can understand it:
-    samp2 <- samp1 + rnorm(length(samp1), differs[i], differs[i]/10) #add some noise
-    inp <- cohen_d(samp1, samp2)
+    samp2 <- samp1 + rnorm(n=length(samp1), mean=differs[i], sd=(differs[i]/10)) #add some noise
+    #inp <- cohen_d(samp1, samp2)
+    inp <- cohensD(samp1, samp2)
     
-    p[i,1] <- pwr.2p.test(h=inp$effectsi , sig.level=0.01, power=0.8, n=NULL)$n
-    p[i,2] <- pwr.2p.test(h=inp$effectsi , sig.level=0.05, power=0.8, n=NULL)$n
-    p[i,3] <- pwr.2p.test(h=inp$effectsi , sig.level=0.1, power=0.8, n=NULL)$n
-    
+    p[i,1] <- pwr.2p.test(h=inp, sig.level=0.01, power=0.8, n=NULL)$n
+    p[i,2] <- pwr.2p.test(h=inp, sig.level=0.05, power=0.8, n=NULL)$n
+    p[i,3] <- pwr.2p.test(h=inp, sig.level=0.1, power=0.8, n=NULL)$n
     
   }
   
-  p <- p[!is.na(p[,1]),]
+  #p <- p[!is.na(p[,1]),]
   return(as.data.frame(p))
 
 }
-
-# test <- crtpwr.2mean(alpha = 0.01, power = 0.8,
-#              n = 10, cv = 0, d = 10, varw = 3,
-#              icc = 0.01, method = "taylor")
-
 
 # clustered MDE for decision threshold
 # we're most likely solving for m, the number of clusters per arm as the size of the cluster,
@@ -66,14 +54,10 @@ dat_MDE <- function(mean.input, sd.input, differs){
 dat_MDE_clus <- function(mean.input, sd.input, clustN.input,
                          icc.input, differs){
   #initialise empty vec
-  p <- matrix(NA, nrow = 20, ncol=3)
+  p <- matrix(NA, nrow = length(differs), ncol=3)
   
   set.seed(20171101)
-  for(i in seq(1:length(differs)) ) {
-    # samp1 <- rnorm(n=1000, mean = mean.input, sd=sd.input)
-    # #this is a better version if you can understand it:
-    # samp2 <- samp1 + rnorm(length(samp1), differs[i], differs[i]/10) #add some noise
-    # inp <- cohen_d(samp1, samp2)
+  for(i in 1:length(differs) ) {
     
     p[i,1] <- crtpwr.2mean(alpha = 0.01, power = 0.8,
                            n = clustN.input, cv = 0, d = differs[i], varw = sd.input,
@@ -137,10 +121,10 @@ ui <- navbarPage("Practical Power Calculations",
                  wellPanel(
               conditionalPanel(
                 condition = "input.percentage == false & input.clustered == false",
-                numericInput("sc_mean",
+                numericInput("sc_mean_m",
                              "Outcome average",
                              value = 100),
-                numericInput("sc_stdev",
+                numericInput("sc_stdev_m",
                              "Outcome standard deviation",
                              value = 50),
                 numericInput("sc_diff_m",
@@ -281,7 +265,7 @@ ui <- navbarPage("Practical Power Calculations",
                     )
                 ) #fluidRow
         ),# tab panel close      
-  tabPanel("Alpha Power Matrix",
+  tabPanel("Alpha Power Matrix (wip)",
            fluidRow(
              column(12,
                     wellPanel(
@@ -335,22 +319,22 @@ server <- function(input, output, session) {
   # just feeding this into the function to look at different differences
   differs <- reactive({
     if(input$percentage==FALSE & input$clustered==FALSE){
-      req(input$sc_mean, input$sc_stdev, input$sc_diff_m)
+      req(input$sc_diff_m)
       toTest = input$sc_diff_m + changes
       toTest = toTest[toTest>0]
       return(toTest)
     } else if(input$percentage==FALSE & input$clustered==TRUE){
-      req(input$sc_mean_c, input$sc_stdev_c, input$sc_diff_mc)
+      req(input$sc_diff_mc)
       toTest = input$sc_diff_mc + changes
       toTest = toTest[toTest>0]
       return(toTest)
     } else if(input$percentage==TRUE & input$clustered==FALSE){
-      req(input$sc_mean, input$sc_stdev, input$sc_diff_p)
+      req(input$sc_mean_p, input$sc_diff_p)
       toTest = ((input$sc_diff_p + changes)/100) * input$sc_mean_p
       toTest = toTest[toTest>0]
       return(toTest)
     } else if(input$percentage==TRUE & input$clustered==TRUE){
-      req(input$sc_mean_pc, input$sc_stdev_pc, input$sc_diff_pc)
+      req(input$sc_mean_pc, input$sc_diff_pc)
       toTest = ((input$sc_diff_pc + changes)/100) * input$sc_mean_pc
       toTest = toTest[toTest>0]
       return(toTest)
@@ -360,15 +344,15 @@ server <- function(input, output, session) {
   
   # the actual power calculations
   sampTab <- reactive({
-    if(input$percentage==FALSE & input$clustered == FALSE){
-      req(input$sc_mean, input$sc_stdev)
-      dat = round(dat_MDE(input$sc_mean, input$sc_stdev, differs()),0)
+    if(input$percentage == FALSE & input$clustered == FALSE){
+      req(input$sc_mean_m, input$sc_stdev_m, input$sc_diff_m)
+      dat = round(dat_MDE(input$sc_mean_m, input$sc_stdev_m, differs()),0)
     } else if(input$percentage==FALSE & input$clustered==TRUE){
       req(input$sc_mean_c, input$sc_stdev_c, input$sc_clustN_c, input$ICC_c)
       dat = round(dat_MDE_clus(input$sc_mean_c, input$sc_stdev_c, input$sc_clustN_c,
                                input$ICC_c, differs()),0)
     } else if(input$percentage == TRUE & input$clustered==FALSE){
-      req(input$sc_mean_p, input$sc_stdev_p)
+      req(input$sc_mean_p, input$sc_stdev_p, input$sc_diff_p)
       dat = round(dat_MDE(input$sc_mean_p, input$sc_stdev_p, differs()),0)
     } else if(input$percentage == TRUE & input$clustered == TRUE){
       req(input$sc_mean_pc, input$sc_stdev_pc, input$sc_clustN_pc, input$ICC_pc)
@@ -546,7 +530,7 @@ server <- function(input, output, session) {
   
   
   
-  # minimum detectable effect
+  # minimum detectable effect plot
   output$mde_plot <- renderPlot({
     req(input$mde_n)
     
@@ -773,7 +757,7 @@ server <- function(input, output, session) {
     #normalWrong = (0.05*0.2)*100
     
     #dat$increase = (dat$wrong - normalWrong)/normalWrong
-    boiler = "This combination is an alpha of %s and power of %s%% requires a sample of %s. This means we have a %s%% chance of a false positive and a %s%% chance of a false negative."
+    boiler = "This combination is an alpha of %s and power of %s%% and requires a sample of %s. This means we have a %s%% chance of a false positive and a %s%% chance of a false negative."
     str = sprintf(boiler, as.character(dat$pval), as.character(dat$powerNum*100), as.character(dat$result), as.character(dat$pval*100), as.character((1-dat$powerNum)*100))
     return(str)
 

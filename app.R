@@ -646,6 +646,16 @@ server <- function(input, output, session) {
     categ_table <- round(table(var) * ((nrows*nrows)/(length(var))))
     categ_table
     
+    if(sum(categ_table[[1]], categ_table[[2]], categ_table[[3]], categ_table[[4]])!=100){
+      # just adding it to the false hypotheses so the graph works
+      diff = 100 - sum(categ_table[[1]], categ_table[[2]], categ_table[[3]], categ_table[[4]])
+      if(diff>0){
+        categ_table[[1]] = categ_table[[1]] + diff
+      } else {
+        categ_table[[1]] = categ_table[[1]] - diff
+      }
+    }
+    
     df$category <- factor(rep(names(categ_table), categ_table))
     
     ggplot(df, aes(x = x, y = y, fill = category)) + 
@@ -669,8 +679,8 @@ server <- function(input, output, session) {
     
     ac <- alphaCalc()
     
-    fp.percentage <- paste(round(ac[4] / (ac[4] + ac[2]) * 100,2), "%") #ppv - truePos / (truePos + falsePos)
-    fn.percentage <- paste(round(ac[5] / (ac[5] + ac[3]) * 100, 2), "%") #npv - trueNeg / (trueNeg + falseNeg)
+    fp.percentage <- paste(round(ac[2] / (ac[4] + ac[2]) * 100,2), "%") #ppv - falsePos / (truePos + falsePos)
+    fn.percentage <- paste(round(ac[3] / (ac[5] + ac[3]) * 100, 2), "%") #npv - falseNeg / (trueNeg + falseNeg)
     res <- rbind(paste0("True false positive rate: ", fp.percentage),
                  paste0("True false negative rate: ", fn.percentage))
     

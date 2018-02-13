@@ -599,6 +599,8 @@ server <- function(input, output, session) {
   )
   
   # ppv
+  # I need to rework all of this so I calculate this the same way!!!
+  
   plotTiles <- eventReactive(input$makeGraph, {
     
     # alpha <- ifelse(input$alpha=="0.1", 0.1, 
@@ -652,11 +654,11 @@ server <- function(input, output, session) {
     falseNeg <- round(trueHypo * (1-input$power),0)
     
     # truths
-    sensitivity <- round(trueHypo / (trueHypo + falseNeg),2) # also true positive
-    specificity <- round(falseHypo / (falseHypo + falsePos),2) # also true negative
+    truePos <- round(trueHypo / (trueHypo + falseNeg),2) # also true positive
+    trueNeg <- round(falseHypo / (falseHypo + falsePos),2) # also true negative
     
-    fp.percentage <- paste(round((1 - specificity) * 100,2), "%")
-    fn.percentage <- paste(round((1 - sensitivity) * 100, 2), "%")
+    fp.percentage <- paste(round(trueHypo / (trueHypo + falsePos) * 100,2), "%")
+    fn.percentage <- paste(trueNeg / (falseNeg + trueNeg) * 100, 2), "%")
     res <- rbind(paste0("True false positive rate: ", fp.percentage),
                  paste0("True false negative rate: ", fn.percentage))
     

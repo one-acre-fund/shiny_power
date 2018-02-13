@@ -601,27 +601,48 @@ server <- function(input, output, session) {
   # ppv
   # I need to rework all of this so I calculate this the same way!!!
   
+  alphaCalc <- eventReactive(input$makeGraph, {
+    trueHypo <- round(100 * input$priorOdds,0)
+    falseHypo <- round(100 - trueHypo,0)
+    
+    # falses
+    falsePos <- round(falseHypo * input$alpha,0) # say it's true when it's not
+    falseNeg <- round(trueHypo * (1-input$power),0) # say it's false when it's true
+    
+    # truths
+    trueNeg <- round(falseHypo - falseNeg,0)
+    truePos <- round(trueHypo * input$power,0)
+    
+    return(c(falseHypo, falsePos, falseNeg, truePos, trueNeg, trueHypo))
+    
+  })
+  
+  
   plotTiles <- eventReactive(input$makeGraph, {
     
     # alpha <- ifelse(input$alpha=="0.1", 0.1, 
     #                 ifelse(input$alpha=="0.05", 0.05, 0.01))
     
-    trueHypo <- round(100 * input$priorOdds,0)
-    falseHypo <- round(100 - trueHypo,0)
+    # need falseHypo, falsePos, falseNeg, truePos
     
-    # falses
-    falsePos <- round(falseHypo * input$alpha,0)
-    falseHypo <- round(falseHypo - falsePos,0)
+    # trueHypo <- round(100 * input$priorOdds,0)
+    # falseHypo <- round(100 - trueHypo,0)
+    # 
+    # # falses
+    # falsePos <- round(falseHypo * input$alpha,0)
+    # falseHypo <- round(falseHypo - falsePos,0)
+    # 
+    # # truths
+    # falseNeg <- round(trueHypo * (1 - input$power),0)
+    # truePos <- round(trueHypo * input$power,0)
     
-    # truths
-    falseNeg <- round(trueHypo * (1 - input$power),0)
-    truePos <- round(trueHypo * input$power,0)
+    ac <- alphaCalc()
     
     nrows <- 10
     df <- expand.grid(y = 1:nrows, x = 1:nrows)
     
-    var = c(rep("1. False Hypotheses", falseHypo), rep("2. False Positives", falsePos),
-            rep("3. False Negatives", falseNeg), rep("4. True Positives", truePos))
+    var = c(rep("1. False Hypotheses", ac[1]), rep("2. False Positives", ac[2]),
+            rep("3. False Negatives", ac[3]), rep("4. True Positives", ac[4]))
     categ_table <- round(table(var) * ((nrows*nrows)/(length(var))))
     categ_table
     
@@ -646,19 +667,10 @@ server <- function(input, output, session) {
     # alpha <- ifelse(input$alpha=="0.1", 0.1, 
     #                 ifelse(input$alpha=="0.05", 0.05, 0.01))
     
-    trueHypo <- round(100 * input$priorOdds,0)
-    falseHypo <- round(100 - trueHypo,0)
+    ac <- alphaCalc()
     
-    # falses
-    falsePos <- round(falseHypo * input$alpha,0)
-    falseNeg <- round(trueHypo * (1-input$power),0)
-    
-    # truths
-    truePos <- round(trueHypo / (trueHypo + falseNeg),2) # also true positive
-    trueNeg <- round(falseHypo / (falseHypo + falsePos),2) # also true negative
-    
-    fp.percentage <- paste(round(trueHypo / (trueHypo + falsePos) * 100,2), "%")
-    fn.percentage <- paste(trueNeg / (falseNeg + trueNeg) * 100, 2), "%")
+    fp.percentage <- paste(round(ac[4] / (ac[4] + ac[2]) * 100,2), "%") #ppv - truePos / (truePos + falsePos)
+    fn.percentage <- paste(round(ac[5] / (ac[5] + ac[3]) * 100, 2), "%") #npv - trueNeg / (trueNeg + falseNeg)
     res <- rbind(paste0("True false positive rate: ", fp.percentage),
                  paste0("True false negative rate: ", fn.percentage))
     

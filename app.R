@@ -89,13 +89,13 @@ posthoc_mde = function(n_length){
   # spo = sqrt((s1**2 + s2**2)/2)
   spo = 2 # this is crude but need to have some sort of inflation factor until I figure out why we need this.
   
-  a1 = pwr.t.test(n = n_length, d=NULL, sig.level = 0.01, power=0.8, type="two.sample", alternative = "two.sided")$d
-  a5 = pwr.t.test(n = n_length, d=NULL, sig.level = 0.05, power=0.8, type="two.sample", alternative = "two.sided")$d
-  a10 = pwr.t.test(n = n_length, d=NULL, sig.level = 0.1, power=0.8, type="two.sample", alternative = "two.sided")$d
+  a1 = pwr.2p.test(n = n_length, h=NULL, sig.level = 0.01, power=0.8)$h
+  a5 = pwr.2p.test(n = n_length, h=NULL, sig.level = 0.05, power=0.8)$h
+  a10 = pwr.2p.test(n = n_length, h=NULL, sig.level = 0.1, power=0.8)$h
   
   mded = as.data.frame(cbind(a1, a5, a10))
   
-  mded = mded * spo
+  #mded = mded * spo
   return(mded)
 }
 
@@ -260,7 +260,8 @@ ui <- navbarPage("Practical Power Calculations",
                     wellPanel(
                       plotOutput("ppv_plot"),
                       br(),
-                      htmlOutput("ppv_percent")
+                      htmlOutput("ppv_percent"),
+                      htmlOutput("ppv_fnpercent")
                              )
                     )
                 ) #fluidRow
@@ -514,6 +515,7 @@ server <- function(input, output, session) {
   nOps = reactive({
     req(input$mde_n)
     nOps = input$mde_n * mde_changes
+    nOps = nOps[nOps>2]
   })
   
   mde_dat <- reactive({
@@ -647,14 +649,16 @@ server <- function(input, output, session) {
     
     # falses
     falsePos <- round(falseHypo * input$alpha,0)
-    falseHypo <- round(falseHypo - falsePos,0)
+    falseNeg <- round(trueHypo * (1-input$power),0)
     
     # truths
-    falseNeg <- round(trueHypo * (1 - input$power),0)
-    truePos <- round(trueHypo * input$power,0)
+    sensitivity <- round(trueHypo / (trueHypo + falseNeg),2) # also true positive
+    specificity <- round(falseHypo / (falseHypo + falsePos),2) # also true negative
     
-    percentage <- paste(round(falsePos / (truePos + falsePos) * 100,1), "%")
-    res <- paste0("True false positive rate: ", percentage)
+    fp.percentage <- paste(round((1 - specificity) * 100,2), "%")
+    fn.percentage <- paste(round((1 - sensitivity) * 100, 2), "%")
+    res <- rbind(paste0("True false positive rate: ", fp.percentage),
+                 paste0("True false negative rate: ", fn.percentage))
     
   })
   
@@ -664,9 +668,15 @@ server <- function(input, output, session) {
   })
   
   output$ppv_percent <- renderText({
-    trueAlpha()
+    trueAlpha()[1]
   })
   
+  output$ppv_fnpercent <- renderText({
+    trueAlpha()[2]
+  })
+  
+  
+  # alpha power !!
   pvals <- c(seq(0.01, 0.04, by=0.01), seq(0.05, 0.5, by=0.05))
   powerVals <- c(seq(0.5, 0.95, by=0.05), seq(0.96, 0.99, by=0.01))
   

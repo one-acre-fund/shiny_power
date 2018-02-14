@@ -652,7 +652,7 @@ server <- function(input, output, session) {
       if(diff>0){
         categ_table[[1]] = categ_table[[1]] + diff
       } else {
-        categ_table[[1]] = categ_table[[1]] - diff
+        categ_table[[1]] = categ_table[[1]] + diff
       }
     }
     

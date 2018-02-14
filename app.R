@@ -24,10 +24,10 @@ cohen_d <- function(d1,d2) {
   } 
 
 
-dat_MDE <- function(mean.input, sd.input, differs){
+dat_MDE <- function(mean.input, sd.input, differs, alpha, power){
   #initialise empty vec
   p <- NULL
-  p <- matrix(NA, nrow = length(differs), ncol=3)
+  p <- matrix(NA, nrow = length(differs), ncol=1)
   
   set.seed(20171101)
   for(i in 1:length(differs)) {
@@ -37,10 +37,9 @@ dat_MDE <- function(mean.input, sd.input, differs){
     #inp <- cohen_d(samp1, samp2)
     inp <- cohensD(samp1, samp2)
     
-    p[i,1] <- pwr.2p.test(h=inp, sig.level=0.01, power=0.8, n=NULL)$n
-    p[i,2] <- pwr.2p.test(h=inp, sig.level=0.05, power=0.8, n=NULL)$n
-    p[i,3] <- pwr.2p.test(h=inp, sig.level=0.1, power=0.8, n=NULL)$n
-    
+    p[i,1] <- pwr.2p.test(h=inp, sig.level=alpha, power=power, n=NULL)$n
+    # p[i,1] <- pwr.2p.test(h=inp, sig.level=0.05, power=0.8, n=NULL)$n
+    # p[i,1] <- pwr.2p.test(h=inp, sig.level=0.1, power=0.8, n=NULL)$n
   }
   
   #p <- p[!is.na(p[,1]),]
@@ -52,24 +51,24 @@ dat_MDE <- function(mean.input, sd.input, differs){
 # we're most likely solving for m, the number of clusters per arm as the size of the cluster,
 # the site, group, etc, is likely set.
 dat_MDE_clus <- function(mean.input, sd.input, clustN.input,
-                         icc.input, differs){
+                         icc.input, differs, alpha, power){
   #initialise empty vec
-  p <- matrix(NA, nrow = length(differs), ncol=3)
+  p <- matrix(NA, nrow = length(differs), ncol=1)
   
   set.seed(20171101)
   for(i in 1:length(differs) ) {
     
-    p[i,1] <- crtpwr.2mean(alpha = 0.01, power = 0.8,
+    p[i,1] <- crtpwr.2mean(alpha = input$alpha, power = power,
                            n = clustN.input, cv = 0, d = differs[i], varw = sd.input,
                            icc = icc.input, method = "taylor")[[1]]
       
-    p[i,2] <- crtpwr.2mean(alpha = 0.05, power = 0.8,
-                           n = clustN.input, cv = 0, d = differs[i], varw = sd.input,
-                           icc = icc.input, method = "taylor")[[1]]
-    
-    p[i,3] <- crtpwr.2mean(alpha = 0.1, power = 0.8,
-                           n = clustN.input, cv = 0, d = differs[i], varw = sd.input,
-                           icc = icc.input, method = "taylor")[[1]]
+    # p[i,2] <- crtpwr.2mean(alpha = 0.05, power = 0.8,
+    #                        n = clustN.input, cv = 0, d = differs[i], varw = sd.input,
+    #                        icc = icc.input, method = "taylor")[[1]]
+    # 
+    # p[i,3] <- crtpwr.2mean(alpha = 0.1, power = 0.8,
+    #                        n = clustN.input, cv = 0, d = differs[i], varw = sd.input,
+    #                        icc = icc.input, method = "taylor")[[1]]
     
   }
   
@@ -129,7 +128,19 @@ ui <- navbarPage("Practical Power Calculations",
                              value = 50),
                 numericInput("sc_diff_m",
                              "Absolute change over control",
-                             value = 10)
+                             value = 10),
+                sliderInput("alpha_m",
+                            "Level of significance",
+                            min = 0.01,
+                            max = 1,
+                            value = 0.1,
+                            step = 0.01),
+                sliderInput("power_m",
+                            "Statistical Power",
+                            min = 0.5,
+                            max = 1,
+                            value = 0.8,
+                            step = 0.01)
               ), #conditional panel1
               conditionalPanel(
                 condition = "input.percentage == false & input.clustered == true",
@@ -147,7 +158,19 @@ ui <- navbarPage("Practical Power Calculations",
                             value = 0.1, min = 0, max = 1),
                 numericInput("sc_clustN_c",
                              "Average cluster size",
-                             value = 10)
+                             value = 10),
+                sliderInput("alpha_c",
+                            "Level of significance",
+                            min = 0.01,
+                            max = 1,
+                            value = 0.1,
+                            step = 0.01),
+                sliderInput("power_c",
+                            "Statistical Power",
+                            min = 0.5,
+                            max = 1,
+                            value = 0.8,
+                            step = 0.01)
               ),
               conditionalPanel(
                 condition = "input.percentage == true & input.clustered == false",
@@ -159,7 +182,19 @@ ui <- navbarPage("Practical Power Calculations",
                              value = 50),
                 numericInput("sc_diff_p",
                              "Percentage (%) change over control",
-                             value = 10)
+                             value = 10),
+                sliderInput("alpha_p",
+                            "Level of significance",
+                            min = 0.01,
+                            max = 1,
+                            value = 0.1,
+                            step = 0.01),
+                sliderInput("power_p",
+                            "Statistical Power",
+                            min = 0.5,
+                            max = 1,
+                            value = 0.8,
+                            step = 0.01)
               ),
               conditionalPanel(
                 condition = "input.percentage == true & input.clustered == true",
@@ -177,7 +212,19 @@ ui <- navbarPage("Practical Power Calculations",
                             value = 0.1, min = 0, max = 1),
                 numericInput("sc_clustN_pc",
                              "Average cluster size",
-                             value = 10)
+                             value = 10),
+                sliderInput("alpha_pc",
+                            "Level of significance",
+                            min = 0.01,
+                            max = 1,
+                            value = 0.1,
+                            step = 0.01),
+                sliderInput("power_pc",
+                            "Statistical Power",
+                            min = 0.5,
+                            max = 1,
+                            value = 0.8,
+                            step = 0.01)
               ),
               downloadButton("downloadData", "Download Result")
             ) #wellpanel layout
@@ -346,17 +393,17 @@ server <- function(input, output, session) {
   # the actual power calculations
   sampTab <- reactive({
     if(input$percentage == FALSE & input$clustered == FALSE){
-      req(input$sc_mean_m, input$sc_stdev_m, input$sc_diff_m)
-      dat = round(dat_MDE(input$sc_mean_m, input$sc_stdev_m, differs()),0)
+      req(input$sc_mean_m, input$sc_stdev_m, input$sc_diff_m, input$alpha_m, input$power_m)
+      dat = round(dat_MDE(input$sc_mean_m, input$sc_stdev_m, differs(), input$alpha_m, input$power_m),0)
     } else if(input$percentage==FALSE & input$clustered==TRUE){
-      req(input$sc_mean_c, input$sc_stdev_c, input$sc_clustN_c, input$ICC_c)
+      req(input$sc_mean_c, input$sc_stdev_c, input$sc_clustN_c, input$ICC_c, input$alpha_c, input$power_c)
       dat = round(dat_MDE_clus(input$sc_mean_c, input$sc_stdev_c, input$sc_clustN_c,
-                               input$ICC_c, differs()),0)
+                               input$ICC_c, differs(), input$alpha_c, input$power_c),0)
     } else if(input$percentage == TRUE & input$clustered==FALSE){
-      req(input$sc_mean_p, input$sc_stdev_p, input$sc_diff_p)
-      dat = round(dat_MDE(input$sc_mean_p, input$sc_stdev_p, differs()),0)
+      req(input$sc_mean_p, input$sc_stdev_p, input$sc_diff_p, input$alpha_p, input$power_p)
+      dat = round(dat_MDE(input$sc_mean_p, input$sc_stdev_p, differs(), input$alpha_p, input$power_p),0)
     } else if(input$percentage == TRUE & input$clustered == TRUE){
-      req(input$sc_mean_pc, input$sc_stdev_pc, input$sc_clustN_pc, input$ICC_pc)
+      req(input$sc_mean_pc, input$sc_stdev_pc, input$sc_clustN_pc, input$ICC_pc, input$alpha_pc, input$power_pc)
       dat = round(dat_MDE_clus(input$sc_mean_pc, input$sc_stdev_pc, input$sc_clustN_pc,
                                input$ICC_pc, differs()),0)
     }
@@ -370,10 +417,10 @@ server <- function(input, output, session) {
     gph <- ggplot() +
         geom_point(aes(x = xval, y = dat[,1]), size=3, color="green", shape=1) +
         geom_line(aes(x = xval, y = dat[,1]), size=1.2, color="green") + 
-        geom_point(aes(x = xval, y = dat[,2]), size=3, color="blue", shape=1) +
-        geom_line(aes(x = xval, y = dat[,2]), size=1.2, color="blue") +
-        geom_point(aes(x = xval, y = dat[,3]), size=3, color="red", shape=1) +
-        geom_line(aes(x = xval, y = dat[,3]), size=1.2, color="red") +
+        # geom_point(aes(x = xval, y = dat[,2]), size=3, color="blue", shape=1) +
+        # geom_line(aes(x = xval, y = dat[,2]), size=1.2, color="blue") +
+        # geom_point(aes(x = xval, y = dat[,3]), size=3, color="red", shape=1) +
+        # geom_line(aes(x = xval, y = dat[,3]), size=1.2, color="red") +
         labs(title = "Differences between treatments vs. sample size", y = "Sample size",
                   x = "Differences between treatments") + 
         theme(plot.title = element_text(hjust = 0.5,size = 20),
@@ -393,7 +440,8 @@ server <- function(input, output, session) {
     dat = format(sampTab(), big.mark = ",")
     # changes to evaluate in the data
     dat = as.data.frame(cbind(differs(), dat))
-    names(dat) = c("Differences", "Alpha is 0.01", "Alpha is 0.05", "Alpha is 0.1")
+    names(dat) = c("Differences", paste0("Alpha is ", input$alpha_m))
+    
     
     datatable(dat, rownames = FALSE, 
               options = list(pageLength = nrow(dat)),
@@ -406,7 +454,7 @@ server <- function(input, output, session) {
       dat = format(sampTab(), big.mark = ",")
       # changes to evaluate in the data
       dat = as.data.frame(cbind(differs(), dat))
-      names(dat) = c("Differences", "Alpha is 0.01", "Alpha is 0.05", "Alpha is 0.1")
+      names(dat) = c("Differences", paste0("Alpha is ", input$alpha_c))
       
       datatable(dat, rownames = FALSE,  
                 options = list(pageLength = nrow(dat)),
@@ -421,7 +469,7 @@ server <- function(input, output, session) {
       
       
       dat = as.data.frame(cbind(differs(), percentage, dat))
-      names(dat) = c("Differences", "Percent Change", "Alpha is 0.01", "Alpha is 0.05", "Alpha is 0.1")
+      names(dat) = c("Differences", "Percent Change", paste0("Alpha is ", input$alpha_p))
       
       datatable(dat, rownames = FALSE,  
                 options = list(pageLength = nrow(dat)),
@@ -435,7 +483,7 @@ server <- function(input, output, session) {
       percentage = ((input$sc_diff_pc + changes)/100)[((input$sc_diff_pc + changes)/100)>0]
       
       dat = as.data.frame(cbind(differs(), percentage, dat))
-      names(dat) = c("Differences", "Percent Change", "Alpha is 0.01", "Alpha is 0.05", "Alpha is 0.1")
+      names(dat) = c("Differences", "Percent Change", paste0("Alpha is ", input$alpha_pc))
       
       datatable(dat, rownames = FALSE,  
                 options = list(pageLength = nrow(dat)),
@@ -461,49 +509,57 @@ server <- function(input, output, session) {
   output$nrequired <- renderUI({
     
     # i'm doing this so it's easier to update messages.
-    normalMsg = c("To achieve 80%% power and an alpha of 0.05 for a decision threshold of %d you'll need %s farmers per treatment arm")
-    clusterMsg = c("To achieve 80%% power and an alpha of 0.05 for a decision threshold of %d, you'll need %s, 
+    normalMsg = c("To achieve %s power and an alpha of %s for a decision threshold of %d you'll need %s farmers per treatment arm")
+    clusterMsg = c("To achieve %s power and an alpha of %s for a decision threshold of %d, you'll need %s, 
                        clusters per treatment arm and %s farmers total per treatment arm")
-    percentMsg = c("To achieve 80%% power and an alpha of 0.05 for a decision threshold of %d%% you'll need 
+    percentMsg = c("To achieve %s power and an alpha of %s for a decision threshold of %d%% you'll need 
                    %s farmers per treatment arm")
-    bothMsg = c("To achieve 80%% power and an alpha of 0.05 for a decision threshold of %d%% you'll need 
+    bothMsg = c("To achieve %s power and an alpha of %s for a decision threshold of %d%% you'll need 
                 %s clusters per treatment arm and %s farmers total per treatment arm")
     
 
     if(input$percentage==FALSE & input$clustered == FALSE){
       dat = sampTab()
-      target = input$sc_diff_m
-      samp_out = format(round(dat[differs()==input$sc_diff_m,2],0), big.mark = ",")
+      target = as.numeric(input$sc_diff_m)
+      alpha = input$alpha_m
+      power = input$power_m
+      samp_out = format(round(dat[differs()==target,1],0), big.mark = ",")
       
-      str1 = sprintf(normalMsg, target, samp_out)
+      str1 = sprintf(normalMsg, power, alpha, target, samp_out)
       
     } else if(input$percentage == FALSE & input$clustered == TRUE) {
       dat = sampTab()
-      target = input$sc_diff_mc
+      alpha = input$alpha_c
+      power = input$power_c
+      target = as.numeric(input$sc_diff_mc)
       
-      samp_out = round(dat[differs()==input$sc_diff_mc,2],0)
+      samp_out = round(dat[differs()==target,2],0)
       farmersArm = format(samp_out * input$sc_clustN_c, big.mark = ",")
       samp_out = format(samp_out, big.mark = ",")
       
-      str1 = sprintf(clusterMsg, target, samp_out, farmersArm)
+      str1 = sprintf(clusterMsg, power, alpha, target, samp_out, farmersArm)
       
     } else if(input$percentage == TRUE & input$clustered == FALSE) {
       dat = sampTab()
-      target = input$sc_diff_p
+      alpha = input$alpha_p
+      power = input$power_p
+      target = as.numeric(input$sc_diff_p)
       
-      samp_out = format(round(dat[differs()==((input$sc_diff_p/100)*input$sc_mean_p),2],0), big.mark = ",")
+      samp_out = format(round(dat[differs()==((target/100)*input$sc_mean_p),1],0), big.mark = ",")
       
-      str1 = sprintf(percentMsg, target, samp_out)
+      str1 = sprintf(percentMsg, power, alpha, target, samp_out)
       
     } else if(input$percentage == TRUE & input$clustered == TRUE) {
       dat = sampTab()
-      target = input$sc_diff_pc
+      alpha = input$alpha_pc
+      power = input$power_pc
+      target = as.numeric(input$sc_diff_pc)
       
-      samp_out = round(dat[differs()==((input$sc_diff_pc)/100*input$sc_mean_pc),2],0)
+      samp_out = round(dat[differs()==((target)/100*input$sc_mean_pc),2],0)
       farmersArm = format(samp_out * input$sc_clustN_pc, big.mark = ",")
       samp_out = format(samp_out, big.mark = ",")
       
-      str1 = sprintf(bothMsg, target, samp_out, farmersArm)
+      str1 = sprintf(bothMsg, power, alpha, target, samp_out, farmersArm)
       
     }
   })

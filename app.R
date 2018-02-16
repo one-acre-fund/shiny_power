@@ -737,8 +737,8 @@ server <- function(input, output, session) {
     
     fp.percentage <- paste(round((ac[2] / ((ac[6] - ac[3]) + ac[2])) * 100,2), "%") #ppv - falsePos / (truePos + falsePos)
     fn.percentage <- paste(round((ac[3] / ((ac[1] - ac[2]) + ac[3])) * 100, 2), "%") #npv - falseNeg / (trueNeg + falseNeg)
-    res <- rbind(paste0("True false positive rate: ", fp.percentage),
-                 paste0("True false negative rate: ", fn.percentage))
+    res <- rbind(paste0("Actual false positive rate: ", fp.percentage),
+                 paste0("Actual false negative rate: ", fn.percentage))
     
   })
   

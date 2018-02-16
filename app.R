@@ -8,6 +8,7 @@ library(DT)
 library(clusterPower)
 library(reshape2)
 library(lsr)
+library(formattable)
 
 # general functions for use
 cohen_d <- function(d1,d2) {  
@@ -324,23 +325,28 @@ ui <- navbarPage("Practical Power Calculations",
                                given the question of interest. By comparison, the earlier tabs assume the decision threshold is
                                the key constraint, not the budget / sample size."),
                       helpText("This power calculator is currently limited to magnitude changes for non-clustered randomized trials.")
+                      #checkboxInput(inputId = "bytrialcost", label = "Look by trial cost?", value = FALSE)
                       )),
              column(4,
                     wellPanel(
-                      numericInput("ap_mean",
-                                   "Outcome average",
-                                   value = 150),
-                      numericInput("ap_stdev",
-                                   "Outcome standard deviation",
-                                   value = 80),
-                      numericInput("ap_diff",
-                                   "Absolute change over control",
-                                   value = 25),
-                      numericInput("ap_samp",
-                                   "Available sample size",
-                                   value=300),
-                      br(),
-                      actionButton("makeAlphaPower", "Generate graph")
+                        condition = "input.bytrialcost == true",
+                        numericInput("ap_mean",
+                                     "Outcome average",
+                                     value = 150),
+                        numericInput("ap_stdev",
+                                     "Outcome standard deviation",
+                                     value = 80),
+                        numericInput("ap_diff",
+                                     "Absolute change over control",
+                                     value = 25),
+                        numericInput("ap_samp",
+                                     "Available sample size",
+                                     value=300),
+                        numericInput("sampleCost",
+                                     "Estimated cost per sample",
+                                     value = 30),
+                        br(),
+                        actionButton("makeAlphaPower", "Generate graph")
                     ) #wellpanel layout
              ), # column close
              column(8,
@@ -785,16 +791,19 @@ server <- function(input, output, session) {
       }))
     }))
     
+    # divide res by trialcost? Or multiply values by cost per sample? What's the best way to integrate the cost
+    # into these options?
+    res$result = round(res$result)
+    res$cost = currency(res$result * input$sampleCost, digits =0L)
+    res$fullInfo = paste(res$result," (", res$cost, ")", sep = "")
+    
     #make graph
     nrows <- length(pvals)
     df <- expand.grid(y = 1:nrows, x = 1:nrows)
     
-    # var = c(rep("1. False Hypotheses", falseHypo), rep("2. False Positives", falsePos),
-    #         rep("3. False Negatives", falseNeg), rep("4. True Positives", truePos))
-    # categ_table <- round(table(var) * ((nrows*nrows)/(length(var))))
-    # categ_table
+    
     df <- cbind(df, res)
-    df$result <- round(df$result)
+    #df$result <- round(df$result)
     df$check <- ifelse(df$result <= input$ap_samp, TRUE, FALSE) # TRUE IS GOOD, FALSE IS BAD
     
     #df$category <- factor(rep(names(categ_table), categ_table))
@@ -809,15 +818,15 @@ server <- function(input, output, session) {
     df <- apDat()
     
     ggplot(df, aes(x = x, y = y, fill = category)) + 
-      geom_tile(color = "black", size = 0.5) +
-      geom_text(label = round(df$res, 1)) +
+      geom_tile(color = "black", width = 1) +
+      geom_text(label = df$fullInfo) +
       scale_x_continuous(expand = c(0, 0), breaks = unique(df$x), labels = pvals) +
       scale_y_continuous(expand = c(0, 0), trans = 'reverse', breaks = unique(df$y), labels = powerVals) +
       scale_fill_brewer(palette = "Set3") +
       #coord_equal() +
       labs(title="Trade-offs of alpha and power for a given effect and budget", 
            caption="Source: our brainz",
-           x = "p-values", y = "Power", category = "Labels") + 
+           x = "p-values", y = "Power", fill = "Result") + 
       theme(legend.position = "bottom",
             plot.title = element_text(hjust = 0.5,size = 15))
     

@@ -819,7 +819,7 @@ server <- function(input, output, session) {
     
     ggplot(df, aes(x = x, y = y, fill = category)) + 
       geom_tile(color = "black", width = 1) +
-      geom_text(label = df$fullInfo) +
+      geom_text(label = df$fullInfo, size = 3) +
       scale_x_continuous(expand = c(0, 0), breaks = unique(df$x), labels = pvals) +
       scale_y_continuous(expand = c(0, 0), trans = 'reverse', breaks = unique(df$y), labels = powerVals) +
       scale_fill_brewer(palette = "Set3") +

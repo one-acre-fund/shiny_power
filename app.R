@@ -27,7 +27,7 @@ cohen_d <- function(d1,d2) {
 dat_MDE <- function(mean.input, sd.input, differs, alpha, power){
   #initialise empty vec
   p <- NULL
-  p <- matrix(NA, nrow = length(differs), ncol=1)
+  p <- matrix(NA, nrow = length(differs), ncol=2)
   
   set.seed(20171101)
   for(i in 1:length(differs)) {
@@ -38,8 +38,8 @@ dat_MDE <- function(mean.input, sd.input, differs, alpha, power){
     inp <- cohensD(samp1, samp2)
     
     p[i,1] <- pwr.2p.test(h=inp, sig.level=alpha, power=power, n=NULL)$n
-    # p[i,1] <- pwr.2p.test(h=inp, sig.level=0.05, power=0.8, n=NULL)$n
-    # p[i,1] <- pwr.2p.test(h=inp, sig.level=0.1, power=0.8, n=NULL)$n
+    p[i,2] <- pwr.2p.test(h=inp, sig.level=0.05, power=0.8, n=NULL)$n
+    #p[i,1] <- pwr.2p.test(h=inp, sig.level=0.1, power=0.8, n=NULL)$n
   }
   
   #p <- p[!is.na(p[,1]),]
@@ -62,10 +62,10 @@ dat_MDE_clus <- function(mean.input, sd.input, clustN.input,
                            n = clustN.input, cv = 0, d = differs[i], varw = sd.input,
                            icc = icc.input, method = "taylor")[[1]]
       
-    # p[i,2] <- crtpwr.2mean(alpha = 0.05, power = 0.8,
-    #                        n = clustN.input, cv = 0, d = differs[i], varw = sd.input,
-    #                        icc = icc.input, method = "taylor")[[1]]
-    # 
+    p[i,2] <- crtpwr.2mean(alpha = 0.05, power = 0.8,
+                           n = clustN.input, cv = 0, d = differs[i], varw = sd.input,
+                           icc = icc.input, method = "taylor")[[1]]
+
     # p[i,3] <- crtpwr.2mean(alpha = 0.1, power = 0.8,
     #                        n = clustN.input, cv = 0, d = differs[i], varw = sd.input,
     #                        icc = icc.input, method = "taylor")[[1]]
@@ -417,8 +417,8 @@ server <- function(input, output, session) {
     gph <- ggplot() +
         geom_point(aes(x = xval, y = dat[,1]), size=3, color="green", shape=1) +
         geom_line(aes(x = xval, y = dat[,1]), size=1.2, color="green") + 
-        # geom_point(aes(x = xval, y = dat[,2]), size=3, color="blue", shape=1) +
-        # geom_line(aes(x = xval, y = dat[,2]), size=1.2, color="blue") +
+        geom_point(aes(x = xval, y = dat[,2]), size=3, color="blue", shape=1) +
+        geom_line(aes(x = xval, y = dat[,2]), size=1.2, color="blue") +
         # geom_point(aes(x = xval, y = dat[,3]), size=3, color="red", shape=1) +
         # geom_line(aes(x = xval, y = dat[,3]), size=1.2, color="red") +
         labs(title = "Differences between treatments vs. sample size", y = "Sample size",
@@ -440,7 +440,7 @@ server <- function(input, output, session) {
     dat = format(sampTab(), big.mark = ",")
     # changes to evaluate in the data
     dat = as.data.frame(cbind(differs(), dat))
-    names(dat) = c("Differences", paste0("Alpha is ", input$alpha_m))
+    names(dat) = c("Differences", paste0("Alpha is ", input$alpha_m), "Alpha is 0.05")
     
     
     datatable(dat, rownames = FALSE, 
@@ -454,7 +454,7 @@ server <- function(input, output, session) {
       dat = format(sampTab(), big.mark = ",")
       # changes to evaluate in the data
       dat = as.data.frame(cbind(differs(), dat))
-      names(dat) = c("Differences", paste0("Alpha is ", input$alpha_c))
+      names(dat) = c("Differences", paste0("Alpha is ", input$alpha_c), "Alpha is 0.05")
       
       datatable(dat, rownames = FALSE,  
                 options = list(pageLength = nrow(dat)),
@@ -469,7 +469,7 @@ server <- function(input, output, session) {
       
       
       dat = as.data.frame(cbind(differs(), percentage, dat))
-      names(dat) = c("Differences", "Percent Change", paste0("Alpha is ", input$alpha_p))
+      names(dat) = c("Differences", "Percent Change", paste0("Alpha is ", input$alpha_p), "Alpha is 0.05")
       
       datatable(dat, rownames = FALSE,  
                 options = list(pageLength = nrow(dat)),
@@ -483,7 +483,7 @@ server <- function(input, output, session) {
       percentage = ((input$sc_diff_pc + changes)/100)[((input$sc_diff_pc + changes)/100)>0]
       
       dat = as.data.frame(cbind(differs(), percentage, dat))
-      names(dat) = c("Differences", "Percent Change", paste0("Alpha is ", input$alpha_pc))
+      names(dat) = c("Differences", "Percent Change", paste0("Alpha is ", input$alpha_pc), "Alpha is 0.05")
       
       datatable(dat, rownames = FALSE,  
                 options = list(pageLength = nrow(dat)),

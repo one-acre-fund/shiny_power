@@ -38,8 +38,8 @@ dat_MDE <- function(mean.input, sd.input, differs, alpha, power){
     #inp <- cohen_d(samp1, samp2)
     inp <- cohensD(samp1, samp2)
     
-    p[i,1] <- pwr.2p.test(h=inp, sig.level=alpha, power=power, n=NULL)$n
-    p[i,2] <- pwr.2p.test(h=inp, sig.level=0.05, power=0.8, n=NULL)$n
+    p[i,1] <- pwr.t.test(d=inp, sig.level=alpha, power=power, n=NULL)$n
+    p[i,2] <- pwr.t.test(d=inp, sig.level=0.05, power=0.8, n=NULL)$n
     #p[i,1] <- pwr.2p.test(h=inp, sig.level=0.1, power=0.8, n=NULL)$n
   }
   
@@ -89,9 +89,9 @@ posthoc_mde = function(n_length){
   # spo = sqrt((s1**2 + s2**2)/2)
   spo = 2 # this is crude but need to have some sort of inflation factor until I figure out why we need this.
   
-  a1 = pwr.2p.test(n = n_length, h=NULL, sig.level = 0.01, power=0.8)$h
-  a5 = pwr.2p.test(n = n_length, h=NULL, sig.level = 0.05, power=0.8)$h
-  a10 = pwr.2p.test(n = n_length, h=NULL, sig.level = 0.1, power=0.8)$h
+  a1 = pwr.t.test(n = n_length, d=NULL, sig.level = 0.01, power=0.8)$d
+  a5 = pwr.t.test(n = n_length, d=NULL, sig.level = 0.05, power=0.8)$d
+  a10 = pwr.t.test(n = n_length, d=NULL, sig.level = 0.1, power=0.8)$d
   
   mded = as.data.frame(cbind(a1, a5, a10))
   
@@ -366,7 +366,7 @@ server <- function(input, output, session) {
   
   # for decision thresholds
   # the same
-  changes = sort(c(seq(-10,10, by=2), 1))
+  changes = sort(c(seq(-10,10, by=1)))
   
   # need to keep this simple 
   # this doesn't need to adjust for clustered designs because regardless I'm 

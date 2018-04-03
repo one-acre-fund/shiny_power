@@ -25,18 +25,18 @@ cohen_d <- function(d1,d2) {
   } 
 
 
-dat_MDE <- function(mean.input, sd.input, differs, alpha, power){
+dat_MDE <- function(sd.input, differs, alpha, power){
   #initialise empty vec
   p <- NULL
   p <- matrix(NA, nrow = length(differs), ncol=2)
   
   set.seed(20171101)
   for(i in 1:length(differs)) {
-    samp1 <- rnorm(n=1000, mean = mean.input, sd=sd.input)
+    #samp1 <- rnorm(n=1000, mean = mean.input, sd=sd.input)
     #this is a better version if you can understand it:
-    samp2 <- samp1 + rnorm(n=length(samp1), mean=differs[i], sd=(differs[i]/10)) #add some noise
+    #samp2 <- samp1 + rnorm(n=length(samp1), mean=differs[i], sd=(differs[i]/10)) #add some noise
     #inp <- cohen_d(samp1, samp2)
-    inp <- cohensD(samp1, samp2)
+    inp <- abs(differs[i] / sd.input)
     
     p[i,1] <- pwr.t.test(d=inp, sig.level=alpha, power=power, n=NULL)$n
     p[i,2] <- pwr.t.test(d=inp, sig.level=0.05, power=0.8, n=NULL)$n
@@ -51,20 +51,20 @@ dat_MDE <- function(mean.input, sd.input, differs, alpha, power){
 # clustered MDE for decision threshold
 # we're most likely solving for m, the number of clusters per arm as the size of the cluster,
 # the site, group, etc, is likely set.
-dat_MDE_clus <- function(mean.input, sd.input, clustN.input,
+dat_MDE_clus <- function(sd.input, clustN.input,
                          icc.input, differs, alpha, power){
   #initialise empty vec
-  p <- matrix(NA, nrow = length(differs), ncol=1)
+  p <- matrix(NA, nrow = length(differs), ncol=2)
   
   set.seed(20171101)
   for(i in 1:length(differs) ) {
     
-    p[i,1] <- crtpwr.2mean(alpha = input$alpha, power = power,
-                           n = clustN.input, cv = 0, d = differs[i], varw = sd.input,
+    p[i,1] <- crtpwr.2mean(alpha = alpha, power = power,
+                           n = clustN.input, cv = 0, d = differs[i], varw = sd.input**2,
                            icc = icc.input, method = "taylor")[[1]]
       
     p[i,2] <- crtpwr.2mean(alpha = 0.05, power = 0.8,
-                           n = clustN.input, cv = 0, d = differs[i], varw = sd.input,
+                           n = clustN.input, cv = 0, d = differs[i], varw = sd.input**2,
                            icc = icc.input, method = "taylor")[[1]]
 
     # p[i,3] <- crtpwr.2mean(alpha = 0.1, power = 0.8,
@@ -121,9 +121,6 @@ ui <- navbarPage("Practical Power Calculations",
                  wellPanel(
               conditionalPanel(
                 condition = "input.percentage == false & input.clustered == false",
-                numericInput("sc_mean_m",
-                             "Outcome average",
-                             value = 100),
                 numericInput("sc_stdev_m",
                              "Outcome standard deviation",
                              value = 50),
@@ -399,18 +396,18 @@ server <- function(input, output, session) {
   # the actual power calculations
   sampTab <- reactive({
     if(input$percentage == FALSE & input$clustered == FALSE){
-      req(input$sc_mean_m, input$sc_stdev_m, input$sc_diff_m, input$alpha_m, input$power_m)
-      dat = round(dat_MDE(input$sc_mean_m, input$sc_stdev_m, differs(), input$alpha_m, input$power_m),0)
+      req(input$sc_stdev_m, input$sc_diff_m, input$alpha_m, input$power_m)
+      dat = round(dat_MDE(input$sc_stdev_m, differs(), input$alpha_m, input$power_m),0)
     } else if(input$percentage==FALSE & input$clustered==TRUE){
       req(input$sc_mean_c, input$sc_stdev_c, input$sc_clustN_c, input$ICC_c, input$alpha_c, input$power_c)
-      dat = round(dat_MDE_clus(input$sc_mean_c, input$sc_stdev_c, input$sc_clustN_c,
+      dat = round(dat_MDE_clus(input$sc_stdev_c, input$sc_clustN_c,
                                input$ICC_c, differs(), input$alpha_c, input$power_c),0)
     } else if(input$percentage == TRUE & input$clustered==FALSE){
       req(input$sc_mean_p, input$sc_stdev_p, input$sc_diff_p, input$alpha_p, input$power_p)
-      dat = round(dat_MDE(input$sc_mean_p, input$sc_stdev_p, differs(), input$alpha_p, input$power_p),0)
+      dat = round(dat_MDE(input$sc_stdev_p, differs(), input$alpha_p, input$power_p),0)
     } else if(input$percentage == TRUE & input$clustered == TRUE){
       req(input$sc_mean_pc, input$sc_stdev_pc, input$sc_clustN_pc, input$ICC_pc, input$alpha_pc, input$power_pc)
-      dat = round(dat_MDE_clus(input$sc_mean_pc, input$sc_stdev_pc, input$sc_clustN_pc,
+      dat = round(dat_MDE_clus(input$sc_stdev_pc, input$sc_clustN_pc,
                                input$ICC_pc, differs()),0)
     }
   })
